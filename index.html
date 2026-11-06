@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>VibeArranger</title>
+	<link rel="icon" type="image/x-icon" href="./favicon.png"> 
+	<link rel="manifest"   href="./web-manifest.json" />		
+    <script type="importmap">
+    {
+        "imports": {
+            "spessasynth_core": "./spessasynth/spessasynth_core.js",
+            "fflate": "./spessasynth/fflate.js",
+            "stb-vorbis": "./spessasynth/stb-vorbis.js"
+        }
+    }
+    </script>	
+    <style>
+        body { background: #121214; color: #fff; font-family: sans-serif; padding: 20px; }
+        .box { background: #1e1e24; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #333; }
+        button { background: #00e676; color: #000; font-weight: bold; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        .log { background: #000; color: #00e676; padding: 15px; font-family: monospace; border-radius: 4px; height: 260px; overflow-y: auto; font-size: 12px; line-height: 1.5; }
+        .file-list { margin-top: 10px; background: #2a2a32; padding: 10px; border-radius: 4px; font-size: 13px; max-height: 150px; overflow-y: auto;}
+        .genre-tag { color: #00e676; font-weight: bold; font-size: 11px; text-transform: uppercase; background: #121214; padding: 2px 6px; border-radius: 3px; margin-right: 5px;}
+        .data-card { background: #121214; padding: 15px; border-radius: 4px; margin-top: 10px; border-left: 4px solid #00e676; font-family: monospace; }
+        .highlight { color: #fff; font-weight: bold; background: #222; padding: 2px 6px; border-radius: 3px; border: 1px solid #444; }
+        .hex-view { background: #050505; color: #aaa; padding: 10px; border-radius: 4px; font-size: 11px; max-height: 120px; overflow-y: auto; margin-top: 10px; }
+        .kbd-matrix { display: flex; gap: 4px; background: #121214; padding: 15px; border-radius: 6px; margin-top: 10px; overflow-x: auto; }
+        .key { flex: 1; min-width: 25px; height: 90px; background: #fff; color: #000; text-align: center; line-height: 130px; font-size: 9px; font-weight: bold; border-radius: 0 0 3px 3px; cursor: pointer; position: relative; }
+        .key.black { background: #000; color: #fff; height: 55px; margin-right: -10px; margin-left: -10px; z-index: 2; min-width: 16px; line-height: 75px;}
+        .key.active-melody { background: #00e676 !important; color: #000; }
+        .key.active-chord { background: #ff3d00 !important; color: #fff; }
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 3px; font-size: 13px; font-weight: bold; margin-left: 10px; }
+        .bg-chord { background: #ff3d00; color: #fff; }
+        .bg-melody { background: #00e676; color: #000; }
+        .data-card { background: #121214; padding: 15px; border-radius: 4px; margin-top: 10px; border-left: 4px solid #ff3d00; font-family: monospace; font-size: 14px; }
+        .variation-rack {display: grid;  grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 5px; }		
+        .btn-var {font-size: 11px;  padding: 8px;  border-color: #333; }
+        .btn-var.active {background: linear-gradient(180deg, #00b0ff 0%, #0070a3 100%); border-color: #00e5ff;  color: #fff; box-shadow: 0 0 8px rgba(0, 176, 255, 0.4);}    
+	</style>
+</head>
+<body>
+
+    <h1>🎹 VibeArranger: Proof of Concept</h1>
+    <p>Targeting the Fixed Data Positions within the Ketron KSHP File System Header Block.</p>
+
+    <!-- STORAGE PICKER -->
+    <div class="box">
+        <h3>1. Connect Storage Folder</h3>
+        <button id="btn-link-dir">Select Ketron Root Folder</button>
+        <p id="txt-dir" style="color: #aaa;">Status: Connect a directory to view style items.</p>
+        
+        <div id="file-display" class="file-list" style="display:none;">
+            <strong>Select a `.KST` File to Analyze:</strong>
+            <div id="kst-items"></div>
+        </div>
+    </div>
+
+    <!-- TARGET EXTRACTOR CONTROL -->
+    <div class="box">
+        <h3>2. KSHP Header Memory Assignment</h3>
+        <button id="btn-parse" disabled>Inspect & Extract KSHP Block Boundaries</button>
+        
+        <div class="data-card">
+            <div>⏱️ Native Track Tempo: <span id="out-tempo" class="highlight">-- BPM</span></div><br>
+            <div>🥁 LiveDrum Subfolder Path: <span id="out-drum" class="highlight">--</span></div><br><br>
+            <div>🎸 RealBass ARRA Subfolder Path: <span id="out-bass1" class="highlight">--</span></div>
+            <div>🎸 RealBass ARRB Subfolder Path: <span id="out-bass2" class="highlight">--</span></div>
+            <div>🎸 RealBass ARRC Subfolder Path: <span id="out-bass3" class="highlight">--</span></div>
+            <div>🎸 RealBass ARRD Subfolder Path: <span id="out-bass4" class="highlight">--</span></div><br>
+            <div>🎹 RealChord ARRA Subfolder Path: <span id="out-chord1" class="highlight">--</span></div>
+            <div>🎹 RealChord ARRB Subfolder Path: <span id="out-chord2" class="highlight">--</span></div>
+            <div>🎹 RealChord ARRC Subfolder Path: <span id="out-chord3" class="highlight">--</span></div>
+            <div>🎹 RealChord ARRD Subfolder Path: <span id="out-chord4" class="highlight">--</span></div><br>
+        </div>
+    </div>
+	
+	<div class="box">
+		<h3>3. Sound Font Synth</h3>
+		<p>🎵 Upload a standard .sf2 SoundFont file below to initialize local audio playback.</p>
+		
+		<!-- File Input -->
+		<input type="file" id="sf2-input" accept=".sf2">
+		
+		<!-- Note Play Trigger -->
+		<button id="sf2-play-btn" disabled>Play Test Note (C4 Piano)</button>
+		
+		<!-- Status Readout -->
+		<div id="status">Status: Waiting for SoundFont...</div>
+	</div>	
+
+    <!-- MIDI HARDWARE ENGINE HUB -->
+    <div class="box">
+        <h3>4. Hardware Connection</h3>
+        <button id="btn-midi-init">Initialize Browser Web MIDI Drivers</button>
+        <span id="midi-status" class="badge" style="background:#555;">Disconnected</span>
+    </div>
+
+    <div class="box">
+        <h3>5. Pitch-Compensated Loop Sync Engine</h3>
+        <label>Arranger Key: </label>
+        <select id="ctrl-key">
+            <option value="C">C</option><option value="C#">C#</option><option value="D">D</option>
+            <option value="D#">D#</option><option value="E">E</option><option value="F">F</option>
+            <option value="F#">F#</option><option value="G">G</option><option value="G#">G#</option>
+            <option value="A">A</option><option value="A#">A#</option><option value="B">B</option>
+        </select>
+        
+        <br><br>
+        <label id="lbl-tempo">Tempo Shift Step: 0</label><br>
+        <input type="range" id="ctrl-tempo" min="-6" max="6" value="0" step="1">
+
+        <br><br>
+        <button id="btn-play" style="background: #555; color: #fff;">START ARRANGEMENT</button>
+        <button id="btn-stop" style="background: #555; color: #fff;">STOP</button>
+    </div>
+	
+    <!-- LIVE CHORD SCANNER MONITOR -->
+    <div class="box">
+        <h3>6. Full-Keyboard Arranger State</h3>
+        <p>Play individual melody notes anywhere (lights up <span class="badge bg-melody">Green</span>). Strike a 3+ note chord voicing anywhere to drive accompaniment changes (lights up <span class="badge bg-chord">Red</span>).</p>
+        
+        <div class="data-card">
+            <div>🎼 Detected Accompaniment Chord: <span id="out-chord" class="highlight">NO CHORD (IDLE)</span></div>
+            <div style="margin-top: 8px;">💿 Target Loop Asset Mapping: <span id="out-asset" class="highlight">--</span></div>
+        </div>
+
+        <!-- VISUAL HARDWARE MONITOR LAYER -->
+        <div class="kbd-matrix" id="virtual-keyboard"></div>
+		
+		<div class="data-card">
+			<h3>🕹️ Arranger Style Variations</h3>
+			<div class="variation-rack">
+				<button class="btn-var active" onclick="setVariation(0)">ARR A</button>
+				<button class="btn-var" onclick="setVariation(1)">ARR B</button>
+				<button class="btn-var" onclick="setVariation(2)">ARR C</button>
+				<button class="btn-var" onclick="setVariation(3)">ARR D</button>			
+			</div>
+			<div class="variation-rack" style="margin-top: 8px;">
+				<button class="btn-var" onclick="setVariation(4)">ARR A_1</button>	
+				<button class="btn-var" onclick="setVariation(5)">ARR B_1</button>			
+				<button class="btn-var" onclick="setVariation(6)">ARR C_1</button>
+				<button class="btn-var" onclick="setVariation(7)">ARR D_1</button>
+			</div>
+		</div>			
+    </div>
+	
+    <h3>System Output Log</h3>
+    <div id="log-window" class="log">Engine waiting to initialize...</div>
+
+	<script type="module">
+		import { WorkletSynthesizer } from "./spessasynth/spessasynth_lib.js";
+
+		const sf2Input = document.getElementById("sf2-input");
+		const sf2PlayBtn = document.getElementById("sf2-play-btn");
+		const statusDiv = document.getElementById("status");
+		
+		let synth = null;
+        let audioCtx = null;		
+		
+		sf2Input.addEventListener("change", async (event) => {
+			const file = event.target.files[0];
+			if (!file) return;
+
+			statusDiv.innerText = "Status: Reading binary file...";
+			sf2PlayBtn.disabled = true;
+
+			try {
+				const arrayBuffer = await file.arrayBuffer();
+
+				// 2. Fire up AudioContext safely
+				if (!audioCtx) {
+					audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+				}
+
+				statusDiv.innerText = "Status: Loading background AudioWorklet...";
+				await audioCtx.audioWorklet.addModule("./spessasynth/spessasynth_processor.min.js");
+				statusDiv.innerText = "Status: Initializing Synth Engine...";				
+				synth = new WorkletSynthesizer(audioCtx, {coreUrl: "./spessasynth/spessasynth_core.js",	fflateUrl: "./spessasynth/fflate.js", stbVorbisUrl: "./spessasynth/stb-vorbis.js"});
+				
+				statusDiv.innerText = "Status: Registering SoundFont blocks...";
+				await synth.soundBankManager.addSoundBank(arrayBuffer, file.name);				
+				statusDiv.innerText = "Status: Waiting for synthesizer ready state...";
+				await synth.isReady;
+
+				statusDiv.innerText = `Status: Ready! Loaded "${file.name}"`;
+				sf2PlayBtn.disabled = false;
+
+			} catch (error) {
+				console.error("Initialization Failed:", error);
+				statusDiv.innerText = `Status Error: Check dev console.`;
+			}
+		});		
+
+		sf2PlayBtn.addEventListener("click", async () => {
+			if (!synth || !audioCtx) return;
+
+			// Browser unlock mechanism
+			if (audioCtx.state === "suspended") {
+				await audioCtx.resume();
+			}
+
+			statusDiv.innerText = "Status: Connecting audio outputs...";
+			synth.connect(audioCtx.destination);
+			statusDiv.innerText = "Status: Playing Note C4...";
+			
+			synth.programChange(0, 0); 	// Set General MIDI channel settings: Program 0 = Acoustic Grand Piano					
+			synth.noteOn(0, 60, 127);	// Attack: Note 60 = Middle C, 127 = Maximum Strike Velocity
+
+			setTimeout(() => {
+				synth.noteOff(0, 60);
+				statusDiv.innerText = "Status: Note released.";
+			}, 1200);
+		});
+	
+        let rootDirHandle = null;
+        let styleDirHandle = null;
+        let selectedStyleInfo = null;
+		
+		let currentChordRoot = null;
+		let currentBassRoot = null;
+		let currentChordType = null;
+		
+		let barStartTime = null;
+		let loopStartTime = null;		
+		let barDuration = null;
+		let oldVariation = 0;
+		let currentVariation = 0;
+		let variationRequest = false;
+		
+        let isPlaying = false;
+        let activeSources = [];
+		let tempo = 120;
+		
+        let midiAccess = null;
+        let activeNotes = new Map(); // Tracks currently held keys: noteNum -> timestamp
+        let chordAnalysisTimeout = null;
+
+        const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];		
+
+        // Separate collections to preserve architectural clarity
+        let loopAudioBuffers = {
+            drums: {},
+            bass: {}, 
+            chords: {}
+        };		
+
+        function logger(msg) {
+            const win = document.getElementById('log-window');
+            win.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+            win.scrollTop = win.scrollHeight;
+        }
+
+        document.getElementById('btn-link-dir').addEventListener('click', async () => {
+            try {
+                rootDirHandle = await window.showDirectoryPicker();
+                document.getElementById('txt-dir').innerText = `Linked: ${rootDirHandle.name}/`;
+				
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    logger("Native AudioContext generated successfully.");
+                }				
+                
+                try {
+                    styleDirHandle = await rootDirHandle.getDirectoryHandle('USER_STYLE', { create: false });
+                    logger("Opened '/USER_STYLE' root hierarchy successfully.");
+                    
+                    document.getElementById('kst-items').innerHTML = "";
+                    let totalFiles = await scanStyleFolderDeep(styleDirHandle);
+                    
+                    if (totalFiles > 0) {
+                        document.getElementById('file-display').style.display = "block";
+                    } else {
+                        logger("No real `.kst` files detected. Building a structural mock file for layout testing.");
+                        injectStructuredMockKst();
+                    }
+                } catch(e) {
+                    logger("CRITICAL: Missing structural '/USER_STYLE' folder entry.");
+                }
+            } catch (err) {
+                logger(`Access Refused: ${err.message}`);
+            }
+        });
+
+        async function scanStyleFolderDeep(folderHandle, currentPath = "") {
+            let count = 0;
+            const container = document.getElementById('kst-items');
+
+            for await (const entry of folderHandle.values()) {
+                if (entry.kind === 'directory') {
+                    const subPath = currentPath ? `${currentPath}/${entry.name}` : entry.name;
+                    const nextHandle = await folderHandle.getDirectoryHandle(entry.name);
+                    count += await scanStyleFolderDeep(nextHandle, subPath);
+                } else if (entry.kind === 'file' && entry.name.toLowerCase().endsWith('.kst')) {
+                    count++;
+                    const div = document.createElement('div');
+                    div.style.padding = "6px"; div.style.cursor = "pointer"; div.style.borderBottom = "1px solid #444";
+                    const genre = currentPath || "Root";
+                    div.innerHTML = `<span class="genre-tag">${genre}</span> 📄 ${entry.name}`;
+                    div.onclick = () => {
+                        selectedStyleInfo = { handle: entry, path: genre, name: entry.name };
+                        highlightSelection(div);
+                    };
+                    container.appendChild(div);
+                }
+            }
+            return count;
+        }
+
+        function injectStructuredMockKst() {
+            document.getElementById('file-display').style.display = "block";
+            const container = document.getElementById('kst-items');
+            const div = document.createElement('div');
+            div.style.padding = "6px"; div.style.cursor = "pointer";
+            div.innerHTML = `<span class="genre-tag">Ballad</span> 📄 CustomGuitars.kst (Simulation Mode)`;
+            div.onclick = () => {
+                selectedStyleInfo = { synthetic: true, name: "CustomGuitars.kst", path: "Ballad" };
+                highlightSelection(div);
+            };
+            container.appendChild(div);
+        }
+
+        function highlightSelection(el) {
+            Array.from(document.getElementById('kst-items').children).forEach(c => c.style.background = "transparent");
+            el.style.background = "#2a4a32";
+            document.getElementById('btn-parse').disabled = false;
+            logger(`Target file targeted: ${selectedStyleInfo.name}`);
+        }
+
+        document.getElementById('btn-parse').addEventListener('click', async () => {
+            if (!selectedStyleInfo) return;
+            logger(`Reading file buffer bytes from: ${selectedStyleInfo.name}...`);
+            
+            let buffer;
+            if (selectedStyleInfo.synthetic) {
+                buffer = createStructuredKetronBinary();
+            } else {
+                const file = await selectedStyleInfo.handle.getFile();
+                buffer = await file.arrayBuffer();
+            }
+			
+			loopAudioBuffers = {drums: {},	bass: {}, chords: {}};			
+            
+            executeFixedBlockKshpParse(buffer);
+        });
+
+        async function executeFixedBlockKshpParse(buffer) {
+            const view = new DataView(buffer);
+            logger(`Data Payload Loaded: ${buffer.byteLength} total bytes.`);
+
+            let extractedBpm = 120;
+            for (let i = 0; i < buffer.byteLength - 6; i++) {
+                if (view.getUint8(i) === 0xFF && view.getUint8(i+1) === 0x51 && view.getUint8(i+2) === 0x03) {
+                    const microSecs = (view.getUint8(i+3) << 16) | (view.getUint8(i+4) << 8) | view.getUint8(i+5);
+                    extractedBpm = Math.round(60000000 / microSecs);
+                    logger(`🎯 MIDI Tempo chunk verified. Extracted Base Speed: ${extractedBpm} BPM.`);
+                    break;
+                }
+            }
+			tempo = extractedBpm;
+
+            logger("Extracting memory slot characters...");
+			// find start = /media/USBACK/USER_MODELING/LiveDrum/
+			// Bass folder names (6x80) =  ARRA, ARRB, ARRC, ARRD, INT, END at start + 0x9EE (2542)
+			// Chord folder names (6x80) = ARRA, ARRB, ARRC, ARRD, INT, END
+			
+            let drumFolder = "Not found";
+            let bassFolder = ["Not found", "Not found", "Not found", "Not found"];
+            let chordFolder = ["Not found", "Not found", "Not found", "Not found"];
+			
+			let origin = findStringInDecoderlessBuffer(buffer, "/media/USBACK/USER_MODELING/LiveDrum/");
+			
+			if (origin) {
+				drumFolder = getStringFromBuffer(buffer, origin + 37);
+				for (let f in bassFolder) bassFolder[f] = getStringFromBuffer(buffer, origin + 2542 + (f * 80));	
+				for (let f in chordFolder) chordFolder[f] = getStringFromBuffer(buffer, origin + 3022 + (f * 80));
+			}
+
+            document.getElementById('out-tempo').innerText = `${extractedBpm} BPM`;
+            document.getElementById('out-drum').innerText = `USER_MODELING/LiveDrum/${drumFolder}`;
+			
+            document.getElementById('out-bass1').innerText = `USER_MODELING/RealBass/${bassFolder[0]}`;
+            document.getElementById('out-bass2').innerText = `USER_MODELING/RealBass/${bassFolder[1]}`;
+            document.getElementById('out-bass3').innerText = `USER_MODELING/RealBass/${bassFolder[2]}`;
+            document.getElementById('out-bass4').innerText = `USER_MODELING/RealBass/${bassFolder[3]}`;
+			
+            document.getElementById('out-chord1').innerText = `USER_MODELING/RealChord/${chordFolder[0]}`;
+            document.getElementById('out-chord2').innerText = `USER_MODELING/RealChord/${chordFolder[1]}`;
+            document.getElementById('out-chord3').innerText = `USER_MODELING/RealChord/${chordFolder[2]}`;
+            document.getElementById('out-chord4').innerText = `USER_MODELING/RealChord/${chordFolder[3]}`;
+			
+            logger(`✅ Verification complete. Loop directory paths linked and ready.`);
+			
+			await scanAndLoadBuffers(drumFolder, bassFolder, chordFolder);
+        }
+
+        function createStructuredKetronBinary() {
+            const buffer = new ArrayBuffer(400);
+            const view = new DataView(buffer);
+            const encoder = new TextEncoder();
+
+            view.setUint8(20, 0xFF); view.setUint8(21, 0x51); view.setUint8(22, 0x03);
+            view.setUint8(23, 0x07); view.setUint8(24, 0xA1); view.setUint8(25, 0x20);
+
+            const targetKshpStart = 120;
+            view.setUint8(targetKshpStart, 0x4B);   
+            view.setUint8(targetKshpStart+1, 0x53); 
+            view.setUint8(targetKshpStart+2, 0x48); 
+            view.setUint8(targetKshpStart+3, 0x50); 
+
+            const mockDataString = "  RockGroove_V2   HeavyBass_E   CleanStrum_A  ";
+            const encodedBytes = encoder.encode(mockDataString);
+            
+            for (let i = 0; i < encodedBytes.length; i++) {
+                view.setUint8(targetKshpStart + 4 + i, encodedBytes[i]);
+            }
+
+            return buffer;
+        }
+		
+		function getStringFromBuffer(buffer, offset, length = null, encoding = 'utf-8') {
+		  const fullView = new Uint8Array(buffer);
+		  let stringView;
+
+		  if (length !== null) {
+			// Approach A: Extract using a known, fixed length
+			stringView = fullView.subarray(offset, offset + length);
+		  } else {
+			// Approach B: Read until a null-terminator (0x00) if length is unknown
+			let end = offset;
+			while (end < fullView.length && fullView[end] !== 0) {
+			  end++;
+			}
+			stringView = fullView.subarray(offset, end);
+		  }
+
+		  // Decode the specific subarray into a JavaScript string
+		  return new TextDecoder(encoding).decode(stringView);
+		}
+				
+		function findStringInDecoderlessBuffer(buffer, searchString) {
+		  const view = new Uint8Array(buffer);
+		  const encoder = new TextEncoder();
+		  const searchBytes = encoder.encode(searchString); // Target sequence
+
+		  if (searchBytes.length === 0) return -1;
+		  if (searchBytes.length > view.length) return -1;
+
+		  // Scan through the Uint8Array byte-by-byte
+		  for (let i = 0; i <= view.length - searchBytes.length; i++) {
+			let match = true;
+			
+			for (let j = 0; j < searchBytes.length; j++) {
+			  if (view[i + j] !== searchBytes[j]) {
+				match = false;
+				break;
+			  }
+			}
+			
+			// If a full matching sequence is found, return the byte offset index
+			if (match) return i; 
+		  }
+
+		  return -1; // Not found
+		}
+
+        async function scanAndLoadBuffers(drumFolder, bassFolders, chordFolders) {
+            logger("Engine Populating......");   
+			const playButton = document.querySelector("#btn-play");
+			playButton.disabled = true;
+			playButton.style.background = "#555"; 			
+			
+			const workList = {};
+			const instrument = ["drums", "bass", "chords"];
+			
+			const userModelingHandle = await rootDirHandle.getDirectoryHandle('USER_MODELING', { create: false });	
+			const folderHandles = [];
+			
+			const drumDirHandle = await userModelingHandle.getDirectoryHandle('LiveDrum', { create: false });	
+			folderHandles[0] = [];
+			folderHandles[0][0] = await drumDirHandle.getDirectoryHandle(drumFolder, { create: false });
+
+			const bassDirHandle = await userModelingHandle.getDirectoryHandle('RealBass', { create: false });	
+			folderHandles[1] = [];					
+			for (const i in bassFolders) if (bassFolders[i] != "") folderHandles[1][i] = await bassDirHandle.getDirectoryHandle(bassFolders[i], { create: false });
+			
+			const chordDirHandle = await userModelingHandle.getDirectoryHandle('RealChord', { create: false });	
+			folderHandles[2] = [];			
+			for (const i in chordFolders) if (chordFolders[i] != "") folderHandles[2][i] = await chordDirHandle.getDirectoryHandle(chordFolders[i], { create: false });						
+			
+
+			for (const i in folderHandles) {
+				const handles = folderHandles[i];
+				
+				for (const j in handles) {
+					const folderHandle = handles[j];
+					
+					for await (const handle of folderHandle.values()) {
+						const fileName = handle.name.toLowerCase();
+						
+						if (handle.kind === 'file' && fileName.endsWith('.wav')) {
+							let keyName;
+							
+							if (i == 0) {
+								keyName = handle.name.toUpperCase().split(".")[0]
+							}
+							else
+							
+							if (i == 1) {
+								keyName = j + "_" + handle.name.toUpperCase().split(".")[0];
+							}
+							else
+							
+							if (i == 2) {
+								keyName = j + "_" + handle.name.toUpperCase().split(".")[0];
+							}	
+							
+							if (keyName) {
+								let audioData = workList[keyName];	
+								
+								if (!audioData) {
+									const file = await handle.getFile();
+									const buffer = await file.arrayBuffer();								
+									audioData = await audioCtx.decodeAudioData(buffer);
+								}
+								
+								loopAudioBuffers[instrument[i]][keyName] = audioData;
+							}							
+						}
+					}	
+				}
+			}
+
+            logger("Engine populated. Ready to run arranger phase verification matrix.");
+			playButton.disabled = false;
+			playButton.style.background = "#ff3d00"; 		
+        }		
+    
+        const tempoInput = document.getElementById('ctrl-tempo');
+        const keyInput = document.getElementById('ctrl-key');
+
+        tempoInput.addEventListener('input', (e) => {
+            document.getElementById('lbl-tempo').innerText = `Tempo Shift Step: ${e.target.value}`;
+            if (isPlaying) restartArrangerEngine(); 
+        });
+		
+        keyInput.addEventListener('change', () => {
+            if (isPlaying) restartArrangerEngine();
+        });
+
+        document.getElementById('btn-play').addEventListener('click', (e) => {
+            if (!audioCtx) return logger("Please click 'Link Folder' first.");
+			
+			if (isPlaying) {
+				stopArrangerPlaybackChannels();				
+			} else {
+				isPlaying = true;
+				e.target.innerHTML = "STOP ARRANGEMENT";
+				e.target.style.background = "#00e676"; 				
+				runArrangerPlaybackChannels();
+			}
+        });
+
+        document.getElementById('btn-stop').addEventListener('click', stopArranger);
+
+		function changeStyleChord(detectedType, detectedRoot, detectedBass) {
+			
+			if (!isPlaying) {
+			  return;
+			}
+				
+			if (currentChordType == detectedType && currentChordRoot == detectedRoot && currentBassRoot == detectedBass && !variationRequest) {
+				return;
+			}
+
+			currentChordType = detectedType;
+			currentChordRoot = detectedRoot;
+			currentBassRoot = detectedBass;
+
+			const fadeTime = 0.1;
+			const now = audioCtx.currentTime;	
+			const newSources = [];
+			const variations = ['ARRA', 'ARRB', 'ARRC', 'ARRD', 'ARRA_1', 'ARRB_1', 'ARRC_1', 'ARRD_1'];
+			
+			activeSources.forEach(oldNode => 
+			{
+				if (oldNode.loopType == "drums" && !variationRequest) {
+					newSources.push(oldNode);
+					return;
+				}
+
+				try {
+				  oldNode.gainNode.gain.setValueAtTime(oldNode.gainNode.gain.value, now);
+				  oldNode.gainNode.gain.linearRampToValueAtTime(0, now + fadeTime);
+				  oldNode.stop(now + fadeTime + 0.1);
+				} catch(e){}
+
+				const targetKey = keyInput.value;				
+				const tempoStep = parseInt(tempoInput.value, 10);
+				const rate = Math.pow(2, tempoStep / 12);
+				const targetIndex = noteNames.indexOf(targetKey);
+				
+				let targetAssetIndex = (targetIndex - tempoStep + detectedRoot) % 12;
+				if (targetAssetIndex < 0) targetAssetIndex += 12;
+				
+				let targetBassAssetIndex = (targetIndex - tempoStep + detectedBass) % 12;
+				if (targetBassAssetIndex < 0) targetBassAssetIndex += 12;				
+				
+				let calculatedMelodicKey;
+
+				if (oldNode.loopType == "drums") {
+					calculatedMelodicKey = variations[currentVariation];
+					variationRequest = false;
+				}
+				else			
+
+				if (oldNode.loopType == "bass") {				
+					if (detectedType === "Maj") calculatedMelodicKey = currentVariation + "_BMAJ_" + noteNames[targetBassAssetIndex];
+					if (detectedType === "Min") calculatedMelodicKey = currentVariation + "_BMIN_" + noteNames[targetBassAssetIndex];
+					if (detectedType === "7th") calculatedMelodicKey = currentVariation + "_BMAJ_" + noteNames[targetBassAssetIndex];
+					if (detectedType === "Min7") calculatedMelodicKey = currentVariation + "_BMIN_" + noteNames[targetBassAssetIndex];
+					if (detectedType === "Sus2" || detectedType === "Sus4") calculatedMelodicKey = currentVariation + "_BMAJ_" + noteNames[targetBassAssetIndex];				
+				}
+				else 
+				
+				if (oldNode.loopType == "chords") {					
+					if (detectedType === "Maj") calculatedMelodicKey = currentVariation + "_MAJ_" + noteNames[targetAssetIndex];
+					if (detectedType === "Min") calculatedMelodicKey = currentVariation + "_MIN_" + noteNames[targetAssetIndex];
+					if (detectedType === "7th") calculatedMelodicKey = currentVariation + "_7TH_" + noteNames[targetAssetIndex];
+					if (detectedType === "Min7") calculatedMelodicKey = currentVariation + "_MIN_" + noteNames[targetAssetIndex];
+					if (detectedType === "Sus2" || detectedType === "Sus4") calculatedMelodicKey = currentVariation + "_SUS_" + noteNames[targetAssetIndex];				
+				}
+				
+				if (calculatedMelodicKey) {				
+					const newNode = triggerLoopNode(oldNode.loopType, loopAudioBuffers[oldNode.loopType][calculatedMelodicKey], rate, now, fadeTime);
+					loopStartTime = now;				
+					newSources.push(newNode);				
+				}
+			});	
+
+			activeSources = newSources;
+		}
+		
+        function runArrangerPlaybackChannels() {
+            const targetKey = keyInput.value;
+            const tempoStep = parseInt(tempoInput.value, 10);
+
+            // Both tracks speed up/slow down identically to maintain rhythmic locking
+            const rate = Math.pow(2, tempoStep / 12);
+			const fadeTime = 0.1;
+
+            // CALCULATE MELODIC SHIFT ONLY
+            const targetIndex = noteNames.indexOf(targetKey);
+            let targetAssetIndex = (targetIndex - tempoStep) % 12;
+            if (targetAssetIndex < 0) targetAssetIndex += 12;
+            const calculatedMelodicKey = noteNames[targetAssetIndex];
+
+            logger(`[DRUMS] Streaming default master loop at speed multiplier: x${rate.toFixed(4)}`);
+            logger(`[MELODIC] Root: ${targetKey} | Shift Offset: ${tempoStep} | Loading Asset Key: [${calculatedMelodicKey}]`);
+
+            const startTime = audioCtx.currentTime + 0.03;
+			barStartTime = startTime;
+			loopStartTime = startTime;
+			barDuration = 4 * (60 / tempo);
+			currentVariation = 0;
+			oldVariation = 0;
+			variationRequest = false;
+
+            // Drums get the base drum asset file but still follow the rhythm playback rate
+            activeSources.push(triggerLoopNode("drums", loopAudioBuffers.drums["INT3"], rate, startTime, fadeTime));
+            
+            // Bass and Chords pull the counter-shifted pitch key files
+            activeSources.push(triggerLoopNode("bass", loopAudioBuffers.bass["0_BIN_MAJ_" + calculatedMelodicKey], rate, startTime, fadeTime));
+            activeSources.push(triggerLoopNode("chords", loopAudioBuffers.chords["0_IN_MAJ_" + calculatedMelodicKey], rate, startTime, fadeTime));
+        }
+		
+        function stopArrangerPlaybackChannels() {
+            activeSources.forEach(src => { try { src.stop(); } catch(e){} });
+            activeSources = [];
+			
+            const targetKey = keyInput.value;
+            const tempoStep = parseInt(tempoInput.value, 10);
+            const rate = Math.pow(2, tempoStep / 12);
+			const fadeTime = 0.1;
+
+            const targetIndex = noteNames.indexOf(targetKey);
+            let targetAssetIndex = (targetIndex - tempoStep) % 12;
+            if (targetAssetIndex < 0) targetAssetIndex += 12;
+            const calculatedMelodicKey = noteNames[targetAssetIndex];
+
+            const startTime = audioCtx.currentTime + 0.03;
+			const drumNode = triggerLoopNode("drums", loopAudioBuffers.drums["END3"], rate, startTime, fadeTime);
+            activeSources.push(drumNode);
+            
+            // Bass and Chords pull the counter-shifted pitch key files
+            activeSources.push(triggerLoopNode("bass", loopAudioBuffers.bass["0_BEN_MAJ_" + calculatedMelodicKey], rate, startTime, fadeTime));
+            activeSources.push(triggerLoopNode("chords", loopAudioBuffers.chords["0_EN_MAJ_" + calculatedMelodicKey], rate, startTime, fadeTime));
+			
+			setTimeout(stopArranger, drumNode.buffer.duration * 1000);			
+		}
+
+        function triggerLoopNode(loopType, audioBuffer, rate, startTime, fadeTime) {			
+            const src = audioCtx.createBufferSource();
+			src.gainNode = audioCtx.createGain();
+			src.connect(src.gainNode);			
+            src.buffer = audioBuffer;
+            src.loop = true;
+            src.playbackRate.setValueAtTime(rate, startTime);
+            src.connect(audioCtx.destination);
+			src.gainNode.gain.setValueAtTime(0, startTime);			
+			src.start(startTime); 
+			src.gainNode.gain.linearRampToValueAtTime(1, startTime + fadeTime);			
+			src.loopType = loopType;	
+            return src;
+        }
+
+        function stopArranger() {
+            activeSources.forEach(src => { try { src.stop(); } catch(e){} });
+            activeSources = [];
+
+			isPlaying = false;	
+			const playButton = document.querySelector("#btn-play");			
+			playButton.innerHTML = "START ARRANGEMENT";
+			playButton.style.background = "#ff3d00"; 			
+            logger("Engine tracking stopped.");
+        }
+
+        function restartArrangerEngine() {
+            activeSources.forEach(src => { try { src.stop(); } catch(e){} });
+            activeSources = [];
+            runArrangerPlaybackChannels();
+        }
+		
+        function buildExtendedKeyboard() {
+            const kbd = document.getElementById('virtual-keyboard');
+            kbd.innerHTML = "";
+            // Render 3 full octaves from Note 48 (C3) up to Note 84 (C6)
+            for (let midiNote = 48; midiNote <= 84; midiNote++) {
+                const name = noteNames[midiNote % 12];
+                const isBlack = name.includes("#");
+                
+                const div = document.createElement('div');
+                div.id = `note-${midiNote}`;
+                div.className = isBlack ? "key black" : "key";
+                div.innerText = `${name}${Math.floor(midiNote/12)-1}`;
+                
+                // Mouse interactions emulator for testing without physical controllers
+                div.onmousedown = () => handleInputRouting(144, midiNote, 100);
+                div.onmouseup = () => handleInputRouting(128, midiNote, 0);
+                
+                kbd.appendChild(div);
+            }
+        }		
+
+        document.getElementById('btn-midi-init').addEventListener('click', async () => {
+            if (!navigator.requestMIDIAccess) {
+                logger("CRITICAL: Browser does not support Web MIDI. Use Chrome, Edge, or Opera.");
+                return;
+            }
+
+            try {
+                midiAccess = await navigator.requestMIDIAccess();
+                const statusBadge = document.getElementById('midi-status');
+                const inputs = midiAccess.inputs.values();
+                let discovered = 0;
+
+                for (let input of inputs) {
+                    input.onmidimessage = (e) => {
+                        const [status, note, velocity] = e.data;
+                        handleInputRouting(status, note, velocity);
+                    };
+                    logger(`Successfully locked onto input device: [${input.name}]`);
+                    discovered++;
+                }
+
+                if (discovered > 0) {
+                    statusBadge.innerText = "Connected";
+                    statusBadge.style.background = "#00e676";
+                    statusBadge.style.color = "#000";
+                } else {
+                    statusBadge.innerText = "Virtual Mode Only";
+                    statusBadge.style.background = "#ffb300";
+                    logger("No hardware detected via USB. Click visual keys to test engine.");
+                }
+            } catch (err) {
+                logger(`Driver load failure: ${err.message}`);
+            }
+        });
+
+        function handleInputRouting(status, note, velocity) {
+            const msgType = status & 0xF0;
+            const isNoteOn = (msgType === 144 && velocity > 0);
+            const isNoteOff = (msgType === 128 || (msgType === 144 && velocity === 0));
+
+            if (isNoteOn) {
+                activeNotes.set(note, performance.now());
+                logger(`📥 [INPUT TRIGGER] Note: ${note} | Velocity: ${velocity} -> Forwarded instantly to Sampler Layer`);
+                
+                // Immediately trigger visualization update
+                updateKeyVisual(note, 'melody');
+				if (synth) synth.noteOn(0, note, velocity);
+
+                // Queue microsecond time window evaluation to look for full harmonic shapes
+                triggerChordEvaluationBuffer();
+            } 
+            else if (isNoteOff) {
+                activeNotes.delete(note);
+                updateKeyVisual(note, 'off');
+                triggerChordEvaluationBuffer();
+				if (synth) synth.noteOff(0, note);
+            }
+        }
+
+        function triggerChordEvaluationBuffer() {
+            clearTimeout(chordAnalysisTimeout);
+            // 15ms window buffers individual human finger-strike execution deltas
+            chordAnalysisTimeout = setTimeout(analyzeFullKeyboardHarmony, 15);
+        }
+
+		function analyzeFullKeyboardHarmony() {
+			const outputChord = document.getElementById('out-chord');
+			const outputAsset = document.getElementById('out-asset');
+
+			if (activeNotes.size < 3) return;
+
+			// Sort notes numerically to ensure notesArray[0] is always the absolute lowest physical bass note
+			const notesArray = Array.from(activeNotes.keys()).sort((a, b) => a - b);
+			
+			let detectedRoot = notesArray[0];
+			let detectedType = "Maj";
+			let bestMatchWeight = -1;
+
+			// Test each note in the cluster as a candidate root to handle inversions cleanly
+			for (let candidateRoot of notesArray) {
+				// Map all notes relative to this candidate root (0 - 11 values)
+				const relativePitches = notesArray.map(n => (n - candidateRoot + 120) % 12);
+				const bitmask = relativePitches.reduce((mask, p) => mask | (1 << p), 0);
+
+				// Define standard chord signature maps using integer bitmasks
+				const chordsTable = [
+					{ type: "Maj", mask: (1<<0) | (1<<4) | (1<<7), weight: 3 },
+					{ type: "Min", mask: (1<<0) | (1<<3) | (1<<7), weight: 3 },
+					{ type: "Sus2", mask: (1<<0) | (1<<2) | (1<<7), weight: 3 },
+					{ type: "Sus4", mask: (1<<0) | (1<<5) | (1<<7), weight: 3 },
+					{ type: "7th", mask: (1<<0) | (1<<4) | (1<<7) | (1<<10), weight: 4 },
+					{ type: "7th", mask: (1<<0) | (1<<4) | (1<<10), weight: 2.5 }, // Dominant 7th drop 5th
+					{ type: "Min7", mask: (1<<0) | (1<<3) | (1<<7) | (1<<10), weight: 4 }
+				];
+
+				for (let chord of chordsTable) {
+					if ((bitmask & chord.mask) === chord.mask) {
+						if (chord.weight > bestMatchWeight) {
+							bestMatchWeight = chord.weight;
+							detectedRoot = candidateRoot;
+							detectedType = chord.type;
+						}
+					}
+				}
+			}
+
+			// Extract pitch classes (0-11) for the root and the actual lowest note held
+			const rootPitchClass = detectedRoot % 12;
+			const bassPitchClass = notesArray[0] % 12;
+
+			const rootName = noteNames[rootPitchClass];
+			const bassName = noteNames[bassPitchClass];
+			
+			// Determine the user-facing text representation
+			let chordDisplayName = `${rootName} ${detectedType}`;
+			if (rootPitchClass !== bassPitchClass) {
+				chordDisplayName += ` / ${bassName}`; // Format as slash chord if inverted
+			}
+
+			// Map the parsed chord directly to the Ketron loop file asset naming architecture
+			let assetSuffix = "Maj.wav";
+			if (detectedType === "Min") assetSuffix = "Min.wav";
+			if (detectedType === "7th") assetSuffix = "7th.wav";
+			if (detectedType === "Min7") assetSuffix = "Min.wav"; // Map Min7 directly to your Minor loop block
+			if (detectedType === "Sus2" || detectedType === "Sus4") assetSuffix = "Maj.wav"; // Map suspensions to Major fallback loop blocks
+
+			// Update UI elements
+			outputChord.innerText = chordDisplayName;
+			outputAsset.innerText = `${rootName}_${assetSuffix}`; // Ketron assets still track the master chord root
+			
+			logger(`🎰 [ARRANGER MATCH] Voicing Found -> ${chordDisplayName} (Targeting asset: ${rootName}_${assetSuffix})`);
+
+			notesArray.forEach(note => updateKeyVisual(note, 'chord'));
+			changeStyleChord(detectedType, rootPitchClass, bassPitchClass); 
+		}
+
+        function updateKeyVisual(note, state) {
+            const el = document.getElementById(`note-${note}`);
+            if (!el) return;
+
+            el.classList.remove('active-melody', 'active-chord');
+            if (state === 'melody') el.classList.add('active-melody');
+            if (state === 'chord') el.classList.add('active-chord');
+        }
+
+        window.setVariation = function(varNo) {
+			oldVariation = currentVariation;
+            currentVariation = varNo;
+			variationRequest = true;
+           
+            // Re-render mechanical illumination tabs
+            document.querySelectorAll('.btn-var').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            logger(`Switched Arranger Layout Focus -> [Variation: ${varNo}]`);            
+        }
+		
+		buildExtendedKeyboard();
+	</script>
+</body>
+</html>
