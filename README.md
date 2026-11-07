@@ -1,5 +1,5 @@
 # vibe-arranger
-Proof of Concept for a Web based Audio Styles Arranger
+*Proof of Concept for a Web based Audio Styles Arranger*
 
 I  wanted a Ketron EVM to carry to church and back every Sunday, but I could not afford one as I had spent all my savings on a Ketron Event 76 keyboard when it first came out. 
 
