@@ -537,12 +537,55 @@
 									const file = await handle.getFile();
 									const buffer = await file.arrayBuffer();								
 									audioData = await audioCtx.decodeAudioData(buffer);
+									workList[keyName] = audioData;
 								}
 								
 								loopAudioBuffers[instrument[i]][keyName] = audioData;
 							}							
 						}
 					}	
+				}
+			}
+			
+			// check for missing intro and endings
+			
+			for (let v=0; v<4; v++) {
+				let keyName;
+				
+				for (let c=0; c<12; c++) {
+					keyName = v + "_BIN_MAJ_" + noteNames[c];
+					if (!loopAudioBuffers["bass"][keyName]) loopAudioBuffers["bass"][keyName] = loopAudioBuffers["bass"][v + "_BMAJ_" + noteNames[c]];
+					if (!loopAudioBuffers["bass"][keyName]) loopAudioBuffers["bass"][keyName] = loopAudioBuffers["bass"][v + "_BMAJ_" + noteNames[c]];	
+
+					keyName = v + "_BIN_MIN_" + noteNames[c];
+					if (!loopAudioBuffers["bass"][keyName]) loopAudioBuffers["bass"][keyName] = loopAudioBuffers["bass"][v + "_BMIN_" + noteNames[c]];
+					if (!loopAudioBuffers["bass"][keyName]) loopAudioBuffers["bass"][keyName] = loopAudioBuffers["bass"][v + "_BMIN_" + noteNames[c]];	
+
+					keyName = v + "_BEN_MAJ_" + noteNames[c];
+					if (!loopAudioBuffers["bass"][keyName]) loopAudioBuffers["bass"][keyName] = loopAudioBuffers["bass"][v + "_BMAJ_" + noteNames[c]];
+					if (!loopAudioBuffers["bass"][keyName]) loopAudioBuffers["bass"][keyName] = loopAudioBuffers["bass"][v + "_BMAJ_" + noteNames[c]];	
+
+					keyName = v + "_BEN_MIN_" + noteNames[c];
+					if (!loopAudioBuffers["bass"][keyName]) loopAudioBuffers["bass"][keyName] = loopAudioBuffers["bass"][v + "_BMIN_" + noteNames[c]];
+					if (!loopAudioBuffers["bass"][keyName]) loopAudioBuffers["bass"][keyName] = loopAudioBuffers["bass"][v + "_BMIN_" + noteNames[c]];	
+
+					// Chords
+					
+					keyName = v + "_IN_MAJ_" + noteNames[c];
+					if (!loopAudioBuffers["chords"][keyName]) loopAudioBuffers["chords"][keyName] = loopAudioBuffers["chords"][v + "_MAJ_" + noteNames[c]];
+					if (!loopAudioBuffers["chords"][keyName]) loopAudioBuffers["chords"][keyName] = loopAudioBuffers["chords"][v + "_MAJ_" + noteNames[c]];	
+
+					keyName = v + "_IN_MIN_" + noteNames[c];
+					if (!loopAudioBuffers["chords"][keyName]) loopAudioBuffers["chords"][keyName] = loopAudioBuffers["chords"][v + "_MIN_" + noteNames[c]];
+					if (!loopAudioBuffers["chords"][keyName]) loopAudioBuffers["chords"][keyName] = loopAudioBuffers["chords"][v + "_MIN_" + noteNames[c]];	
+
+					keyName = v + "_EN_MAJ_" + noteNames[c];
+					if (!loopAudioBuffers["chords"][keyName]) loopAudioBuffers["chords"][keyName] = loopAudioBuffers["chords"][v + "_MAJ_" + noteNames[c]];
+					if (!loopAudioBuffers["chords"][keyName]) loopAudioBuffers["chords"][keyName] = loopAudioBuffers["chords"][v + "_MAJ_" + noteNames[c]];	
+
+					keyName = v + "_EN_MIN_" + noteNames[c];
+					if (!loopAudioBuffers["chords"][keyName]) loopAudioBuffers["chords"][keyName] = loopAudioBuffers["chords"][v + "_MIN_" + noteNames[c]];
+					if (!loopAudioBuffers["chords"][keyName]) loopAudioBuffers["chords"][keyName] = loopAudioBuffers["chords"][v + "_MIN_" + noteNames[c]];						
 				}
 			}
 
