@@ -219,9 +219,7 @@
 		let currentChordRoot = null;
 		let currentBassRoot = null;
 		let currentChordType = null;
-		
-		let barStartTime = null;
-		let loopStartTime = null;		
+			
 		let barDuration = null;
 		let oldVariation = 0;
 		let currentVariation = 0;
@@ -235,7 +233,12 @@
         let activeNotes = new Map(); // Tracks currently held keys: noteNum -> timestamp
         let chordAnalysisTimeout = null;
 
-        const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];		
+        const noteNames	 	= ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+		const variations 	= ['ARRA', 'ARRB', 'ARRC', 'ARRD', 'ARRA_1', 'ARRB_1', 'ARRC_1', 'ARRD_1'];
+		const fills 		= ['FILA', 'FILB', 'FILC', 'FILD'];
+		const breaks 		= ['BRKA', 'BRKB', 'BRKC', 'BRKD'];			
+		const intros 		= ['INT1', 'INT2', 'INT3'];
+		const endings 		= ['END1', 'END2', 'END3'];		
 
         // Separate collections to preserve architectural clarity
         let loopAudioBuffers = {
@@ -359,9 +362,6 @@
 			tempo = extractedBpm;
 
             logger("Extracting memory slot characters...");
-			// find start = /media/USBACK/USER_MODELING/LiveDrum/
-			// Bass folder names (6x80) =  ARRA, ARRB, ARRC, ARRD, INT, END at start + 0x9EE (2542)
-			// Chord folder names (6x80) = ARRA, ARRB, ARRC, ARRD, INT, END
 			
             let drumFolder = "Not found";
             let bassFolder = ["Not found", "Not found", "Not found", "Not found"];
@@ -579,7 +579,6 @@
 			const fadeTime = 0.1;
 			const now = audioCtx.currentTime;	
 			const newSources = [];
-			const variations = ['ARRA', 'ARRB', 'ARRC', 'ARRD', 'ARRA_1', 'ARRB_1', 'ARRC_1', 'ARRD_1'];
 			
 			activeSources.forEach(oldNode => 
 			{
@@ -631,8 +630,7 @@
 				}
 				
 				if (calculatedMelodicKey) {				
-					const newNode = triggerLoopNode(oldNode.loopType, loopAudioBuffers[oldNode.loopType][calculatedMelodicKey], rate, now, fadeTime);
-					loopStartTime = now;				
+					const newNode = triggerLoopNode(oldNode.loopType, loopAudioBuffers[oldNode.loopType][calculatedMelodicKey], rate, now, fadeTime);			
 					newSources.push(newNode);				
 				}
 			});	
@@ -658,15 +656,13 @@
             logger(`[MELODIC] Root: ${targetKey} | Shift Offset: ${tempoStep} | Loading Asset Key: [${calculatedMelodicKey}]`);
 
             const startTime = audioCtx.currentTime + 0.03;
-			barStartTime = startTime;
-			loopStartTime = startTime;
 			barDuration = 4 * (60 / tempo);
 			currentVariation = 0;
 			oldVariation = 0;
 			variationRequest = false;
 
             // Drums get the base drum asset file but still follow the rhythm playback rate
-            activeSources.push(triggerLoopNode("drums", loopAudioBuffers.drums["INT3"], rate, startTime, fadeTime));
+            activeSources.push(triggerLoopNode("drums", loopAudioBuffers.drums[intros[2]], rate, startTime, fadeTime));
             
             // Bass and Chords pull the counter-shifted pitch key files
             activeSources.push(triggerLoopNode("bass", loopAudioBuffers.bass["0_BIN_MAJ_" + calculatedMelodicKey], rate, startTime, fadeTime));
@@ -688,7 +684,7 @@
             const calculatedMelodicKey = noteNames[targetAssetIndex];
 
             const startTime = audioCtx.currentTime + 0.03;
-			const drumNode = triggerLoopNode("drums", loopAudioBuffers.drums["END3"], rate, startTime, fadeTime);
+			const drumNode = triggerLoopNode("drums", loopAudioBuffers.drums[endings[2]], rate, startTime, fadeTime);
             activeSources.push(drumNode);
             
             // Bass and Chords pull the counter-shifted pitch key files
