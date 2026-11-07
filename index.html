@@ -226,6 +226,7 @@
 			}, 1200);
 		});
 	
+		let variationRequested = false;
         let rootDirHandle = null;
         let styleDirHandle = null;
         let selectedStyleInfo = null;
@@ -483,9 +484,15 @@
             logger("Engine Populating......");   
 			const playButton = document.querySelector("#btn-play");
 			playButton.disabled = true;
-			playButton.style.background = "#555"; 			
+			playButton.style.background = "#555"; 	
+
+			const drumTempo = parseInt(drumFolder.split("_")[1]);
 			
-			const workList = {};
+			if (!tempo || drumTempo != tempo){
+				logger("Tempo mismatch!!! Using drums tempo " + drumTempo);   
+				tempo = drumTempo;			
+			}
+			
 			const instrument = ["drums", "bass", "chords"];
 			
 			const userModelingHandle = await rootDirHandle.getDirectoryHandle('USER_MODELING', { create: false });	
@@ -517,7 +524,7 @@
 							let keyName;
 							
 							if (i == 0) {
-								keyName = handle.name.toUpperCase().split(".")[0]
+								keyName = handle.name.toUpperCase().split(".")[0];
 							}
 							else
 							
@@ -531,16 +538,14 @@
 							}	
 							
 							if (keyName) {
-								let audioData = workList[keyName];	
+								let audioData = loopAudioBuffers[instrument[i]][keyName];	
 								
 								if (!audioData) {
 									const file = await handle.getFile();
 									const buffer = await file.arrayBuffer();								
 									audioData = await audioCtx.decodeAudioData(buffer);
-									workList[keyName] = audioData;
+									loopAudioBuffers[instrument[i]][keyName] = audioData;									
 								}
-								
-								loopAudioBuffers[instrument[i]][keyName] = audioData;
 							}							
 						}
 					}	
@@ -703,10 +708,12 @@
 			  return;
 			}
 				
-			if (currentChordType == detectedType && currentChordRoot == detectedRoot && currentBassRoot == detectedBass) {
+			if (currentChordType == detectedType && currentChordRoot == detectedRoot && currentBassRoot == detectedBass && !variationRequested) {
 				return;
 			}
 
+			variationRequested = false;		// need to play same chord again if variation has changed
+			
 			currentChordType = detectedType;
 			currentChordRoot = detectedRoot;
 			currentBassRoot = detectedBass;
@@ -1051,6 +1058,7 @@
 			currentVariation = varNo;
 			currentDrumKey = targetKey;
 			updateVariationButtons();
+			variationRequested = true;
             logger(`Queued drum variation ${targetKey}${fillKey ? ` with ${fillKey}` : ""}.`);
         };
 		
