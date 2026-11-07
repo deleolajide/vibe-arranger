@@ -14,6 +14,10 @@ You would need a midi controller, a folder/directory or drive on your PC that co
 
 You also need a good quality SF2 sound font file with a piano sound. (program change 0). The web application will ignore all midi data in the KST file and only extract the audio style folder names. make sure they exist in the USER_MODELING folder.
 
+After connecting the root folder, use **Scan Root for SoundFonts** in section 3 to find `.sf2` files recursively and select one by its relative path. You can also upload a SoundFont directly. The most recently selected file replaces the current SoundFont.
+
+The mixer in section 7 controls the drum, bass, chord, and synth levels independently, plus the master output. Muting preserves the slider setting. Section 8 applies one insertion effect at a time to the SoundFont synth (not the audio style loops), with GS low and high EQ controls. Symphonic uses the synth's XG processor, so GS EQ is unavailable while it is selected; switching between GS and XG resets sounding synth notes. Effect and mixer settings are retained when changing SoundFonts during the session.
+
 While the arranger is playing, use the FILA–FILD and BRKA–BRKD buttons to play the remainder of a drum fill or break in the current bar. The current drum loop resumes at the next bar while bass and chords continue. Variation changes take effect at the next bar; enable AutoFill to play the fill corresponding to the selected variation before the change. The arrangement start/stop button plays END3 at the next bar, while STOP stops immediately. Bar timing assumes four beats per bar. Missing loops are reported in the system log.
 It is open source, free and available for anyone to clone, extend and do whatever they like with it. It is fully functional and proves the concept and answers my question about creating a cheaper Ketron EVM alternative.
 

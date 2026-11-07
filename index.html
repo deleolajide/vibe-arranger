@@ -36,6 +36,9 @@
         .variation-rack {display: grid;  grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 5px; }		
         .btn-var {font-size: 11px;  padding: 8px;  border-color: #333; }
         .btn-var.active {background: linear-gradient(180deg, #00b0ff 0%, #0070a3 100%); border-color: #00e5ff;  color: #fff; box-shadow: 0 0 8px rgba(0, 176, 255, 0.4);}    
+        .control-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 10px 0; }
+        .control-row label { min-width: 90px; }
+        button[aria-pressed="true"] { background: #ff7043; }
 	</style>
 </head>
 <body>
@@ -76,7 +79,11 @@
 	
 	<div class="box">
 		<h3>3. Sound Font Synth</h3>
-		<p>🎵 Upload a standard .sf2 SoundFont file below to initialize local audio playback.</p>
+		<p>Choose a SoundFont from the connected root folder or upload one directly.</p>
+		<button id="btn-scan-sf2" disabled>Scan Root for SoundFonts</button>
+		<label for="sf2-picker">SoundFont:</label>
+		<select id="sf2-picker" disabled><option value="">Scan the root folder first</option></select>
+		<p id="sf2-scan-status" role="status">Connect a root folder to scan for .sf2 files.</p>
 		
 		<!-- File Input -->
 		<input type="file" id="sf2-input" accept=".sf2">
@@ -158,52 +165,216 @@
 		</div>			
     </div>
 	
+    <div class="box">
+        <h3>7. Mixer</h3>
+        <p>Track levels apply to live playback, including loop transitions and the SoundFont synth.</p>
+        <div class="control-row"><label for="volume-drums">Drums</label><input id="volume-drums" type="range" min="0" max="100" value="100"><output id="level-drums">100%</output><button id="mute-drums" aria-pressed="false">Mute drums</button></div>
+        <div class="control-row"><label for="volume-bass">Bass</label><input id="volume-bass" type="range" min="0" max="100" value="100"><output id="level-bass">100%</output><button id="mute-bass" aria-pressed="false">Mute bass</button></div>
+        <div class="control-row"><label for="volume-chords">Chord</label><input id="volume-chords" type="range" min="0" max="100" value="100"><output id="level-chords">100%</output><button id="mute-chords" aria-pressed="false">Mute chord</button></div>
+        <div class="control-row"><label for="volume-synth">Synth</label><input id="volume-synth" type="range" min="0" max="100" value="100"><output id="level-synth">100%</output><button id="mute-synth" aria-pressed="false">Mute synth</button></div>
+        <div class="control-row"><label for="volume-master">Master</label><input id="volume-master" type="range" min="0" max="100" value="100"><output id="level-master">100%</output><button id="mute-master" aria-pressed="false">Mute master</button></div>
+    </div>
+
+    <div class="box">
+        <h3>8. Synth Effects</h3>
+        <p>One insertion effect at a time applies to the SoundFont synth, not the audio loops. Selecting Symphonic switches to XG mode; GS EQ is unavailable in that mode.</p>
+        <div class="control-row">
+            <label for="effect-type">Insertion</label>
+            <select id="effect-type">
+                <option value="0">Off</option>
+                <option value="293">Tremolo</option><option value="294">Auto Pan</option>
+                <option value="288">Phaser</option><option value="289">Auto Wah</option>
+                <option value="290">Rotary Speaker</option><option value="symphonic">Symphonic (XG)</option>
+                <option value="273">Distortion</option><option value="272">Overdrive</option>
+            </select>
+        </div>
+        <fieldset id="gs-eq">
+            <legend>GS Equalizer</legend>
+            <div class="control-row"><label for="eq-low-frequency">Low frequency</label><select id="eq-low-frequency"><option value="0">225 Hz</option><option value="1">425 Hz</option></select><label for="eq-low-gain">Low gain</label><input id="eq-low-gain" type="range" min="-12" max="12" value="0"><output id="eq-low-output">0 dB</output></div>
+            <div class="control-row"><label for="eq-high-frequency">High frequency</label><select id="eq-high-frequency"><option value="0">3 kHz</option><option value="1">6 kHz</option></select><label for="eq-high-gain">High gain</label><input id="eq-high-gain" type="range" min="-12" max="12" value="0"><output id="eq-high-output">0 dB</output></div>
+        </fieldset>
+    </div>
+
     <h3>System Output Log</h3>
     <div id="log-window" class="log">Engine waiting to initialize...</div>
 
 	<script type="module">
 		import { WorkletSynthesizer } from "./spessasynth/spessasynth_lib.js";
+		import { MIDIUtils } from "spessasynth_core";
 
 		const sf2Input = document.getElementById("sf2-input");
 		const sf2PlayBtn = document.getElementById("sf2-play-btn");
 		const statusDiv = document.getElementById("status");
 		
 		let synth = null;
-        let audioCtx = null;		
-		
-		sf2Input.addEventListener("change", async (event) => {
-			const file = event.target.files[0];
-			if (!file) return;
+        let audioCtx = null;
+        let mixer = null;
+        let workletModule = null;
+        let soundFontQueue = Promise.resolve();
+        let soundFontRequest = 0;
+        let soundFontHandles = [];
+        let scanRequest = 0;
+        let synthEffectMode = null;
 
-			statusDiv.innerText = "Status: Reading binary file...";
-			sf2PlayBtn.disabled = true;
+        const mixerState = Object.fromEntries(['drums', 'bass', 'chords', 'synth', 'master'].map(name => [name, { volume: 1, muted: false }]));
+        function ensureMixer() {
+            if (mixer) return mixer;
+            mixer = {};
+            for (const name of Object.keys(mixerState)) {
+                mixer[name] = audioCtx.createGain();
+                mixer[name].gain.value = mixerState[name].muted ? 0 : mixerState[name].volume;
+            }
+            mixer.master.connect(audioCtx.destination);
+            for (const name of ['drums', 'bass', 'chords', 'synth']) mixer[name].connect(mixer.master);
+            return mixer;
+        }
 
-			try {
+        for (const name of Object.keys(mixerState)) {
+            const slider = document.getElementById(`volume-${name}`);
+            const mute = document.getElementById(`mute-${name}`);
+            const update = () => {
+                document.getElementById(`level-${name}`).textContent = `${Math.round(mixerState[name].volume * 100)}%`;
+                mute.setAttribute('aria-pressed', String(mixerState[name].muted));
+                if (mixer) mixer[name].gain.setValueAtTime(mixerState[name].muted ? 0 : mixerState[name].volume, audioCtx.currentTime);
+            };
+            slider.addEventListener('input', () => { mixerState[name].volume = Number(slider.value) / 100; update(); });
+            mute.addEventListener('click', () => { mixerState[name].muted = !mixerState[name].muted; update(); });
+        }
+
+        function applySynthEffects(target) {
+            const effect = document.getElementById('effect-type').value;
+            const xg = effect === 'symphonic';
+            document.getElementById('gs-eq').disabled = xg;
+            if (!target) return;
+            const mode = xg ? 'xg' : 'gs';
+            if (synthEffectMode !== mode) {
+                target.systemExclusive(xg ? MIDIUtils.xg(0, 0, 126, [0]) : MIDIUtils.gs(64, 0, 127, [0]));
+                synthEffectMode = mode;
+            }
+            if (xg) {
+                target.systemExclusive(MIDIUtils.xg(3, 0, 0, [0x44, 0]));
+                target.systemExclusive(MIDIUtils.xg(3, 0, 12, [0]));
+            } else {
+                const type = Number(effect);
+                target.systemExclusive(MIDIUtils.gs(64, 3, 0, [type >> 8, type & 127]));
+                target.systemExclusive(MIDIUtils.gs(64, 0x41, 0x22, [type ? 1 : 0]));
+                target.systemExclusive(MIDIUtils.gs(64, 0x41, 0x20, [1]));
+                applyEqualizer(target);
+            }
+        }
+
+        function applyEqualizer(target) {
+            if (!target || document.getElementById('effect-type').value === 'symphonic') return;
+            const values = [
+                Number(document.getElementById('eq-low-frequency').value),
+                Number(document.getElementById('eq-low-gain').value) + 64,
+                Number(document.getElementById('eq-high-frequency').value),
+                Number(document.getElementById('eq-high-gain').value) + 64
+            ];
+            values.forEach((value, address) => target.systemExclusive(MIDIUtils.gs(64, 2, address, [value])));
+        }
+        document.getElementById('effect-type').addEventListener('change', () => applySynthEffects(synth));
+        for (const id of ['eq-low-frequency', 'eq-low-gain', 'eq-high-frequency', 'eq-high-gain']) {
+            document.getElementById(id).addEventListener('input', () => {
+                document.getElementById('eq-low-output').textContent = `${document.getElementById('eq-low-gain').value} dB`;
+                document.getElementById('eq-high-output').textContent = `${document.getElementById('eq-high-gain').value} dB`;
+                applyEqualizer(synth);
+            });
+        }
+
+        function loadSoundFont(getFile) {
+            const request = ++soundFontRequest;
+            soundFontQueue = soundFontQueue.then(async () => {
+                if (request !== soundFontRequest) return;
+                let newSynth = null;
+                statusDiv.innerText = "Status: Reading SoundFont...";
+                sf2PlayBtn.disabled = true;
+                try {
+                const file = await getFile();
 				const arrayBuffer = await file.arrayBuffer();
-
-				// 2. Fire up AudioContext safely
 				if (!audioCtx) {
 					audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 				}
-
-				statusDiv.innerText = "Status: Loading background AudioWorklet...";
-				await audioCtx.audioWorklet.addModule("./spessasynth/spessasynth_processor.min.js");
-				statusDiv.innerText = "Status: Initializing Synth Engine...";				
-				synth = new WorkletSynthesizer(audioCtx, {coreUrl: "./spessasynth/spessasynth_core.js",	fflateUrl: "./spessasynth/fflate.js", stbVorbisUrl: "./spessasynth/stb-vorbis.js"});
-				
-				statusDiv.innerText = "Status: Registering SoundFont blocks...";
-				await synth.soundBankManager.addSoundBank(arrayBuffer, file.name);				
-				statusDiv.innerText = "Status: Waiting for synthesizer ready state...";
-				await synth.isReady;
-
+                ensureMixer();
+                if (!synth) {
+                    if (!workletModule) workletModule = audioCtx.audioWorklet.addModule("./spessasynth/spessasynth_processor.min.js").catch(error => { workletModule = null; throw error; });
+                    await workletModule;
+                    newSynth = new WorkletSynthesizer(audioCtx, {coreUrl: "./spessasynth/spessasynth_core.js", fflateUrl: "./spessasynth/fflate.js", stbVorbisUrl: "./spessasynth/stb-vorbis.js"});
+                    await newSynth.isReady;
+                }
+                const target = synth || newSynth;
+                await target.soundBankManager.addSoundBank(arrayBuffer, 'selected-soundfont');
+                synthEffectMode = null;
+                applySynthEffects(target);
+                if (newSynth) {
+                    newSynth.connect(mixer.synth);
+                    synth = newSynth;
+                }
+                if (request !== soundFontRequest) return;
 				statusDiv.innerText = `Status: Ready! Loaded "${file.name}"`;
 				sf2PlayBtn.disabled = false;
-
 			} catch (error) {
+                if (newSynth && newSynth !== synth) newSynth.destroy();
 				console.error("Initialization Failed:", error);
-				statusDiv.innerText = `Status Error: Check dev console.`;
+                if (request === soundFontRequest) {
+                    statusDiv.innerText = `SoundFont error: ${error.message}`;
+                    sf2PlayBtn.disabled = !synth;
+                }
 			}
-		});		
+            });
+            return soundFontQueue;
+        }
+		sf2Input.addEventListener("change", (event) => {
+			const file = event.target.files[0];
+			if (file) loadSoundFont(() => Promise.resolve(file));
+		});
+
+        document.getElementById('btn-scan-sf2').addEventListener('click', async () => {
+            const root = rootDirHandle;
+            if (!root) return;
+            const request = ++scanRequest;
+            const picker = document.getElementById('sf2-picker');
+            const status = document.getElementById('sf2-scan-status');
+            picker.disabled = true;
+            status.textContent = 'Scanning for SoundFonts...';
+            const found = [];
+            async function scan(folder, path = '') {
+                for await (const entry of folder.values()) {
+                    const entryPath = path ? `${path}/${entry.name}` : entry.name;
+                    if (entry.kind === 'directory') await scan(entry, entryPath);
+                    else if (entry.kind === 'file' && /\.sf2$/i.test(entry.name)) found.push({ handle: entry, path: entryPath });
+                }
+            }
+            try {
+                await scan(root);
+                if (request !== scanRequest || root !== rootDirHandle) return;
+                found.sort((a, b) => a.path.localeCompare(b.path));
+                soundFontHandles = found;
+                picker.replaceChildren();
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = found.length ? 'Select a SoundFont' : 'No SoundFonts found';
+                picker.appendChild(placeholder);
+                found.forEach((item, index) => {
+                    const option = document.createElement('option');
+                    option.value = String(index);
+                    option.textContent = item.path;
+                    picker.appendChild(option);
+                });
+                picker.disabled = !found.length;
+                status.textContent = `Found ${found.length} SoundFont${found.length === 1 ? '' : 's'}.`;
+            } catch (error) {
+                if (request !== scanRequest || root !== rootDirHandle) return;
+                soundFontHandles = [];
+                status.textContent = `SoundFont scan failed: ${error.message}`;
+                console.error('SoundFont scan failed:', error);
+            }
+        });
+        document.getElementById('sf2-picker').addEventListener('change', event => {
+            if (event.target.value === '') return;
+            const item = soundFontHandles[Number(event.target.value)];
+            if (item) loadSoundFont(() => item.handle.getFile());
+        });
 
 		sf2PlayBtn.addEventListener("click", async () => {
 			if (!synth || !audioCtx) return;
@@ -213,8 +384,6 @@
 				await audioCtx.resume();
 			}
 
-			statusDiv.innerText = "Status: Connecting audio outputs...";
-			synth.connect(audioCtx.destination);
 			statusDiv.innerText = "Status: Playing Note C4...";
 			
 			synth.programChange(0, 0); 	// Set General MIDI channel settings: Program 0 = Acoustic Grand Piano					
@@ -273,6 +442,17 @@
         document.getElementById('btn-link-dir').addEventListener('click', async () => {
             try {
                 rootDirHandle = await window.showDirectoryPicker();
+                scanRequest++;
+                soundFontHandles = [];
+                document.getElementById('btn-scan-sf2').disabled = false;
+                const picker = document.getElementById('sf2-picker');
+                picker.replaceChildren();
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = 'Scan the root folder first';
+                picker.appendChild(placeholder);
+                picker.disabled = true;
+                document.getElementById('sf2-scan-status').textContent = 'Scan the connected root folder for .sf2 files.';
                 document.getElementById('txt-dir').innerText = `Linked: ${rootDirHandle.name}/`;
 				
                 if (!audioCtx) {
@@ -890,7 +1070,7 @@
             src.buffer = audioBuffer;
             src.loop = loop;
             src.playbackRate.setValueAtTime(rate, startTime);
-            src.gainNode.connect(audioCtx.destination);
+            src.gainNode.connect(ensureMixer()[loopType]);
 			src.gainNode.gain.setValueAtTime(0, startTime);			
 			src.start(startTime, offset);
 			src.gainNode.gain.linearRampToValueAtTime(1, startTime + fadeTime);			
@@ -985,6 +1165,9 @@
             const isNoteOff = (msgType === 128 || (msgType === 144 && velocity === 0));
 
             if (isNoteOn) {
+                if (synth && audioCtx.state === 'suspended') {
+                    audioCtx.resume().catch(error => logger(`Audio resume failed: ${error.message}`));
+                }
                 activeNotes.set(note, performance.now());
                 logger(`📥 [INPUT TRIGGER] Note: ${note} | Velocity: ${velocity} -> Forwarded instantly to Sampler Layer`);
                 
