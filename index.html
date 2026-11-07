@@ -154,7 +154,7 @@
 				<button onclick="playDrumFill('BRKC')">BRKC</button>
 				<button onclick="playDrumFill('BRKD')">BRKD</button>
 			</div>
-			<p><label><input type="checkbox" id="auto-fill"> AutoFill</label></p>
+			<p><label><input type="checkbox" checked id="auto-fill"> AutoFill</label></p>
 		</div>			
     </div>
 	
@@ -486,7 +486,8 @@
 			playButton.disabled = true;
 			playButton.style.background = "#555"; 	
 
-			const drumTempo = parseInt(drumFolder.split("_")[1]);
+			const parts = drumFolder.split("_");
+			const drumTempo = parseInt(parts[parts.length - 1]);
 			
 			if (!tempo || drumTempo != tempo){
 				logger("Tempo mismatch!!! Using drums tempo " + drumTempo);   
@@ -494,23 +495,56 @@
 			}
 			
 			const instrument = ["drums", "bass", "chords"];
+			let drumDirHandle, bassDirHandle, chordDirHandle;
+			let userModelingHandle = await rootDirHandle.getDirectoryHandle('USER_MODELING', { create: false });	
+
+			try {
+				drumDirHandle = await userModelingHandle.getDirectoryHandle('LiveDrum', { create: false });	
+			} catch (e) {
+				logger("Missing LiveDrum folder or access/premissions issues - " + e); 
+				return;
+			}
 			
-			const userModelingHandle = await rootDirHandle.getDirectoryHandle('USER_MODELING', { create: false });	
+			try {
+				bassDirHandle = await userModelingHandle.getDirectoryHandle('RealBass', { create: false });	
+			} catch (e) {
+				logger("Missing RealBass folder or access/premissions issues - " + e); 
+				return;
+			}
+
+			try {
+				chordDirHandle = await userModelingHandle.getDirectoryHandle('RealChord', { create: false });
+			} catch (e) {
+				logger("Missing RealChord folder or access/premissions issues - " + e); 
+				return;
+			}			
+
 			const folderHandles = [];
 			
-			const drumDirHandle = await userModelingHandle.getDirectoryHandle('LiveDrum', { create: false });	
-			folderHandles[0] = [];
-			folderHandles[0][0] = await drumDirHandle.getDirectoryHandle(drumFolder, { create: false });
+			try {						
+				folderHandles[0] = [];
+				folderHandles[0][0] = await drumDirHandle.getDirectoryHandle(drumFolder, { create: false });
+			} catch (e) {
+				logger("Missing drum style folder or access/premissions issues - " + e); 
+				return;
+			}				
 
-			const bassDirHandle = await userModelingHandle.getDirectoryHandle('RealBass', { create: false });	
-			folderHandles[1] = [];					
-			for (const i in bassFolders) if (bassFolders[i] != "") folderHandles[1][i] = await bassDirHandle.getDirectoryHandle(bassFolders[i], { create: false });
-			
-			const chordDirHandle = await userModelingHandle.getDirectoryHandle('RealChord', { create: false });	
-			folderHandles[2] = [];			
-			for (const i in chordFolders) if (chordFolders[i] != "") folderHandles[2][i] = await chordDirHandle.getDirectoryHandle(chordFolders[i], { create: false });						
-			
+			try {						
+				folderHandles[1] = [];					
+				for (const i in bassFolders) if (bassFolders[i] != "") folderHandles[1][i] = await bassDirHandle.getDirectoryHandle(bassFolders[i], { create: false });
+			} catch (e) {
+				logger("Missing bass style folders or access/premissions issues - " + e); 
+				return;
+			}				
 
+			try {						
+				folderHandles[2] = [];			
+				for (const i in chordFolders) if (chordFolders[i] != "") folderHandles[2][i] = await chordDirHandle.getDirectoryHandle(chordFolders[i], { create: false });						
+			} catch (e) {
+				logger("Missing chord style folders or access/premissions issues - " + e); 
+				return;
+			}			
+			
 			for (const i in folderHandles) {
 				const handles = folderHandles[i];
 				
@@ -809,6 +843,10 @@
 		
         function stopArrangerPlaybackChannels() {
 			if (endingScheduled) return;
+
+			const playButton = document.querySelector("#btn-play");	
+			playButton.style.background = "brown"; 	
+			playButton.innerHTML = "STOPPING....";
 			
             const targetKey = keyInput.value;
             const tempoStep = parseInt(tempoInput.value, 10);

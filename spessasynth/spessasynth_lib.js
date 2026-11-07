@@ -3352,5 +3352,3 @@ function audioBufferToWav(audioBuffer, options) {
 	return new Blob([audioToWav(channels, audioBuffer.sampleRate, options)], { type: "audio/wav" });
 }
 export { BasicSynthesizer, BasicSynthesizerCore, DEFAULT_SEQUENCER_OPTIONS, DEFAULT_SYNTH_CONFIG, LibMIDIChannel, LibMIDIInput, LibMIDIOutput, LibMIDIPort, MIDIData, MIDIDataTrack, MIDIDeviceHandler, SeqEventHandler, Sequencer, SoundBankManager, SynthEventHandler, WebMIDILinkHandler, WorkerSynthesizer, WorkerSynthesizerCore, WorkletSynthesizer, audioBufferToWav };
-
-//# sourceMappingURL=index.js.map
