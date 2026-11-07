@@ -141,6 +141,20 @@
 				<button class="btn-var" onclick="setVariation(6)">ARR C_1</button>
 				<button class="btn-var" onclick="setVariation(7)">ARR D_1</button>
 			</div>
+			<h3>Drum Fills and Breaks</h3>
+			<div class="variation-rack">
+				<button onclick="playDrumFill('FILA')">FILA</button>
+				<button onclick="playDrumFill('FILB')">FILB</button>
+				<button onclick="playDrumFill('FILC')">FILC</button>
+				<button onclick="playDrumFill('FILD')">FILD</button>
+			</div>
+			<div class="variation-rack">
+				<button onclick="playDrumFill('BRKA')">BRKA</button>
+				<button onclick="playDrumFill('BRKB')">BRKB</button>
+				<button onclick="playDrumFill('BRKC')">BRKC</button>
+				<button onclick="playDrumFill('BRKD')">BRKD</button>
+			</div>
+			<p><label><input type="checkbox" id="auto-fill"> AutoFill</label></p>
 		</div>			
     </div>
 	
@@ -221,9 +235,11 @@
 		let currentChordType = null;
 			
 		let barDuration = null;
-		let oldVariation = 0;
+		let barStartTime = null;
 		let currentVariation = 0;
-		let variationRequest = false;
+		let currentDrumKey = null;
+		let endingScheduled = false;
+		let endingNode = null;
 		
         let isPlaying = false;
         let activeSources = [];
@@ -540,19 +556,25 @@
 
         tempoInput.addEventListener('input', (e) => {
             document.getElementById('lbl-tempo').innerText = `Tempo Shift Step: ${e.target.value}`;
-            if (isPlaying) restartArrangerEngine(); 
+            if (isPlaying && !endingScheduled) restartArrangerEngine();
         });
 		
         keyInput.addEventListener('change', () => {
-            if (isPlaying) restartArrangerEngine();
+            if (isPlaying && !endingScheduled) restartArrangerEngine();
         });
 
-        document.getElementById('btn-play').addEventListener('click', (e) => {
+        document.getElementById('btn-play').addEventListener('click', async (e) => {
             if (!audioCtx) return logger("Please click 'Link Folder' first.");
 			
 			if (isPlaying) {
 				stopArrangerPlaybackChannels();				
 			} else {
+				if (audioCtx.state === "suspended") await audioCtx.resume();
+				if (!hasBuffers([
+					["drums", intros[2]],
+					["bass", "0_BIN_MAJ_" + getMelodicKey()],
+					["chords", "0_IN_MAJ_" + getMelodicKey()]
+				])) return;
 				isPlaying = true;
 				e.target.innerHTML = "STOP ARRANGEMENT";
 				e.target.style.background = "#00e676"; 				
@@ -562,13 +584,83 @@
 
         document.getElementById('btn-stop').addEventListener('click', stopArranger);
 
+		function getMelodicKey() {
+			const index = (noteNames.indexOf(keyInput.value) - parseInt(tempoInput.value, 10) + 12) % 12;
+			return noteNames[index];
+		}
+
+		function hasBuffers(entries) {
+			const missing = entries.filter(([type, key]) => !loopAudioBuffers[type][key]);
+			if (missing.length) {
+				logger(`Missing audio loops: ${missing.map(([type, key]) => `${type}/${key}`).join(", ")}`);
+				return false;
+			}
+			return true;
+		}
+
+		function nextBarTime(now) {
+			if (now < barStartTime) return barStartTime;
+			return barStartTime + (Math.floor((now - barStartTime) / barDuration) + 1) * barDuration;
+		}
+
+		function scheduleDrumTransition(targetKey, fillKey = null) {
+			if (!isPlaying || endingScheduled) {
+				logger("Start the arranger before playing a fill, break, or variation.");
+				return false;
+			}
+			const required = [["drums", targetKey]];
+			if (fillKey) required.push(["drums", fillKey]);
+			if (!hasBuffers(required)) return false;
+
+			const now = audioCtx.currentTime;
+			const boundary = nextBarTime(now);
+			const rate = Math.pow(2, parseInt(tempoInput.value, 10) / 12);
+			const fadeTime = Math.min(0.02, (boundary - now) / 2);
+
+			// A new request replaces any drum sources already scheduled for a future bar.
+			activeSources.filter(src => src.loopType === "drums").forEach(src => {
+				if (src.startTime > now) {
+					src.stop(now);
+				} else if (fillKey) {
+					src.gainNode.gain.cancelScheduledValues(now);
+					src.gainNode.gain.setValueAtTime(src.gainNode.gain.value, now);
+					src.gainNode.gain.linearRampToValueAtTime(0, now + fadeTime);
+					src.stop(now + fadeTime);
+				} else {
+					src.stop(boundary);
+				}
+			});
+			activeSources = activeSources.filter(src => src.loopType !== "drums" || src.startTime <= now);
+
+			if (fillKey) {
+				const buffer = loopAudioBuffers.drums[fillKey];
+				const remaining = (boundary - now) * rate;
+				const offset = (buffer.duration - remaining % buffer.duration) % buffer.duration;
+				const fill = triggerLoopNode("drums", buffer, rate, now, fadeTime, offset);
+				fill.stop(boundary);
+				activeSources.push(fill);
+			}
+			activeSources.push(triggerLoopNode("drums", loopAudioBuffers.drums[targetKey], rate, boundary, 0));
+			return true;
+		}
+
+		window.playDrumFill = function(key) {
+			if (scheduleDrumTransition(currentDrumKey, key)) logger(`Playing drum ${key}.`);
+		};
+
+		function updateVariationButtons() {
+			document.querySelectorAll('.btn-var').forEach((btn, index) => {
+				btn.classList.toggle('active', index === currentVariation);
+			});
+		}
+
 		function changeStyleChord(detectedType, detectedRoot, detectedBass) {
 			
-			if (!isPlaying) {
+			if (!isPlaying || endingScheduled) {
 			  return;
 			}
 				
-			if (currentChordType == detectedType && currentChordRoot == detectedRoot && currentBassRoot == detectedBass && !variationRequest) {
+			if (currentChordType == detectedType && currentChordRoot == detectedRoot && currentBassRoot == detectedBass) {
 				return;
 			}
 
@@ -582,16 +674,10 @@
 			
 			activeSources.forEach(oldNode => 
 			{
-				if (oldNode.loopType == "drums" && !variationRequest) {
+				if (oldNode.loopType == "drums") {
 					newSources.push(oldNode);
 					return;
 				}
-
-				try {
-				  oldNode.gainNode.gain.setValueAtTime(oldNode.gainNode.gain.value, now);
-				  oldNode.gainNode.gain.linearRampToValueAtTime(0, now + fadeTime);
-				  oldNode.stop(now + fadeTime + 0.1);
-				} catch(e){}
 
 				const targetKey = keyInput.value;				
 				const tempoStep = parseInt(tempoInput.value, 10);
@@ -606,33 +692,32 @@
 				
 				let calculatedMelodicKey;
 
-				if (oldNode.loopType == "drums") {
-					calculatedMelodicKey = variations[currentVariation];
-					variationRequest = false;
-				}
-				else			
-
 				if (oldNode.loopType == "bass") {				
-					if (detectedType === "Maj") calculatedMelodicKey = currentVariation + "_BMAJ_" + noteNames[targetBassAssetIndex];
-					if (detectedType === "Min") calculatedMelodicKey = currentVariation + "_BMIN_" + noteNames[targetBassAssetIndex];
-					if (detectedType === "7th") calculatedMelodicKey = currentVariation + "_BMAJ_" + noteNames[targetBassAssetIndex];
-					if (detectedType === "Min7") calculatedMelodicKey = currentVariation + "_BMIN_" + noteNames[targetBassAssetIndex];
-					if (detectedType === "Sus2" || detectedType === "Sus4") calculatedMelodicKey = currentVariation + "_BMAJ_" + noteNames[targetBassAssetIndex];				
+					if (detectedType === "Maj") calculatedMelodicKey = (currentVariation % 4) + "_BMAJ_" + noteNames[targetBassAssetIndex];
+					if (detectedType === "Min") calculatedMelodicKey = (currentVariation % 4) + "_BMIN_" + noteNames[targetBassAssetIndex];
+					if (detectedType === "7th") calculatedMelodicKey = (currentVariation % 4) + "_BMAJ_" + noteNames[targetBassAssetIndex];
+					if (detectedType === "Min7") calculatedMelodicKey = (currentVariation % 4) + "_BMIN_" + noteNames[targetBassAssetIndex];
+					if (detectedType === "Sus2" || detectedType === "Sus4") calculatedMelodicKey = (currentVariation % 4) + "_BMAJ_" + noteNames[targetBassAssetIndex];
 				}
 				else 
 				
 				if (oldNode.loopType == "chords") {					
-					if (detectedType === "Maj") calculatedMelodicKey = currentVariation + "_MAJ_" + noteNames[targetAssetIndex];
-					if (detectedType === "Min") calculatedMelodicKey = currentVariation + "_MIN_" + noteNames[targetAssetIndex];
-					if (detectedType === "7th") calculatedMelodicKey = currentVariation + "_7TH_" + noteNames[targetAssetIndex];
-					if (detectedType === "Min7") calculatedMelodicKey = currentVariation + "_MIN_" + noteNames[targetAssetIndex];
-					if (detectedType === "Sus2" || detectedType === "Sus4") calculatedMelodicKey = currentVariation + "_SUS_" + noteNames[targetAssetIndex];				
+					if (detectedType === "Maj") calculatedMelodicKey = (currentVariation % 4) + "_MAJ_" + noteNames[targetAssetIndex];
+					if (detectedType === "Min") calculatedMelodicKey = (currentVariation % 4) + "_MIN_" + noteNames[targetAssetIndex];
+					if (detectedType === "7th") calculatedMelodicKey = (currentVariation % 4) + "_7TH_" + noteNames[targetAssetIndex];
+					if (detectedType === "Min7") calculatedMelodicKey = (currentVariation % 4) + "_MIN_" + noteNames[targetAssetIndex];
+					if (detectedType === "Sus2" || detectedType === "Sus4") calculatedMelodicKey = (currentVariation % 4) + "_SUS_" + noteNames[targetAssetIndex];
 				}
 				
-				if (calculatedMelodicKey) {				
-					const newNode = triggerLoopNode(oldNode.loopType, loopAudioBuffers[oldNode.loopType][calculatedMelodicKey], rate, now, fadeTime);			
+				if (calculatedMelodicKey && hasBuffers([[oldNode.loopType, calculatedMelodicKey]])) {
+					const buffer = loopAudioBuffers[oldNode.loopType][calculatedMelodicKey];
+					const offset = ((now - barStartTime) * rate % buffer.duration + buffer.duration) % buffer.duration;
+					oldNode.gainNode.gain.setValueAtTime(oldNode.gainNode.gain.value, now);
+					oldNode.gainNode.gain.linearRampToValueAtTime(0, now + fadeTime);
+					oldNode.stop(now + fadeTime + 0.1);
+					const newNode = triggerLoopNode(oldNode.loopType, buffer, rate, now, fadeTime, offset);
 					newSources.push(newNode);				
-				}
+				} else newSources.push(oldNode);
 			});	
 
 			activeSources = newSources;
@@ -656,10 +741,13 @@
             logger(`[MELODIC] Root: ${targetKey} | Shift Offset: ${tempoStep} | Loading Asset Key: [${calculatedMelodicKey}]`);
 
             const startTime = audioCtx.currentTime + 0.03;
-			barDuration = 4 * (60 / tempo);
+			barDuration = 4 * (60 / tempo) / rate;
+			barStartTime = startTime;
 			currentVariation = 0;
-			oldVariation = 0;
-			variationRequest = false;
+			currentDrumKey = intros[2];
+			endingScheduled = false;
+			currentChordType = currentChordRoot = currentBassRoot = null;
+			updateVariationButtons();
 
             // Drums get the base drum asset file but still follow the rhythm playback rate
             activeSources.push(triggerLoopNode("drums", loopAudioBuffers.drums[intros[2]], rate, startTime, fadeTime));
@@ -670,8 +758,7 @@
         }
 		
         function stopArrangerPlaybackChannels() {
-            activeSources.forEach(src => { try { src.stop(); } catch(e){} });
-            activeSources = [];
+			if (endingScheduled) return;
 			
             const targetKey = keyInput.value;
             const tempoStep = parseInt(tempoInput.value, 10);
@@ -683,29 +770,47 @@
             if (targetAssetIndex < 0) targetAssetIndex += 12;
             const calculatedMelodicKey = noteNames[targetAssetIndex];
 
-            const startTime = audioCtx.currentTime + 0.03;
-			const drumNode = triggerLoopNode("drums", loopAudioBuffers.drums[endings[2]], rate, startTime, fadeTime);
+			const drumBuffer = loopAudioBuffers.drums[endings[2]];
+			if (!hasBuffers([
+				["drums", endings[2]],
+				["bass", "0_BEN_MAJ_" + calculatedMelodicKey],
+				["chords", "0_EN_MAJ_" + calculatedMelodicKey]
+			])) return;
+			const startTime = nextBarTime(audioCtx.currentTime);
+			endingScheduled = true;
+			activeSources.forEach(src => src.stop(startTime));
+			const drumNode = triggerLoopNode("drums", drumBuffer, rate, startTime, fadeTime, 0, false);
+			endingNode = drumNode;
             activeSources.push(drumNode);
             
             // Bass and Chords pull the counter-shifted pitch key files
-            activeSources.push(triggerLoopNode("bass", loopAudioBuffers.bass["0_BEN_MAJ_" + calculatedMelodicKey], rate, startTime, fadeTime));
-            activeSources.push(triggerLoopNode("chords", loopAudioBuffers.chords["0_EN_MAJ_" + calculatedMelodicKey], rate, startTime, fadeTime));
-			
-			setTimeout(stopArranger, drumNode.buffer.duration * 1000);			
+			const endTime = startTime + drumBuffer.duration / rate;
+            const bassNode = triggerLoopNode("bass", loopAudioBuffers.bass["0_BEN_MAJ_" + calculatedMelodicKey], rate, startTime, fadeTime);
+            const chordNode = triggerLoopNode("chords", loopAudioBuffers.chords["0_EN_MAJ_" + calculatedMelodicKey], rate, startTime, fadeTime);
+			bassNode.stop(endTime);
+			chordNode.stop(endTime);
+			activeSources.push(bassNode, chordNode);
+			drumNode.onended = () => {
+				if (endingNode === drumNode) stopArranger();
+			};
 		}
 
-        function triggerLoopNode(loopType, audioBuffer, rate, startTime, fadeTime) {			
+        function triggerLoopNode(loopType, audioBuffer, rate, startTime, fadeTime, offset = 0, loop = true) {
             const src = audioCtx.createBufferSource();
 			src.gainNode = audioCtx.createGain();
 			src.connect(src.gainNode);			
             src.buffer = audioBuffer;
-            src.loop = true;
+            src.loop = loop;
             src.playbackRate.setValueAtTime(rate, startTime);
-            src.connect(audioCtx.destination);
+            src.gainNode.connect(audioCtx.destination);
 			src.gainNode.gain.setValueAtTime(0, startTime);			
-			src.start(startTime); 
+			src.start(startTime, offset);
 			src.gainNode.gain.linearRampToValueAtTime(1, startTime + fadeTime);			
 			src.loopType = loopType;	
+			src.startTime = startTime;
+			src.onended = () => {
+				activeSources = activeSources.filter(node => node !== src);
+			};
             return src;
         }
 
@@ -713,6 +818,8 @@
             activeSources.forEach(src => { try { src.stop(); } catch(e){} });
             activeSources = [];
 
+			endingScheduled = false;
+			endingNode = null;
 			isPlaying = false;	
 			const playButton = document.querySelector("#btn-play");			
 			playButton.innerHTML = "START ARRANGEMENT";
@@ -723,6 +830,8 @@
         function restartArrangerEngine() {
             activeSources.forEach(src => { try { src.stop(); } catch(e){} });
             activeSources = [];
+			endingScheduled = false;
+			endingNode = null;
             runArrangerPlaybackChannels();
         }
 		
@@ -893,16 +1002,14 @@
         }
 
         window.setVariation = function(varNo) {
-			oldVariation = currentVariation;
-            currentVariation = varNo;
-			variationRequest = true;
-           
-            // Re-render mechanical illumination tabs
-            document.querySelectorAll('.btn-var').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            logger(`Switched Arranger Layout Focus -> [Variation: ${varNo}]`);            
-        }
+			const targetKey = variations[varNo];
+			const fillKey = document.getElementById('auto-fill').checked ? fills[varNo % fills.length] : null;
+			if (!scheduleDrumTransition(targetKey, fillKey)) return;
+			currentVariation = varNo;
+			currentDrumKey = targetKey;
+			updateVariationButtons();
+            logger(`Queued drum variation ${targetKey}${fillKey ? ` with ${fillKey}` : ""}.`);
+        };
 		
 		buildExtendedKeyboard();
 	</script>
