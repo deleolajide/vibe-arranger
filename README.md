@@ -1,8 +1,7 @@
 # vibe-arranger
 *Proof of Concept for a Web based Audio Styles Arranger*
 
-<img width="512" alt="image" src="https://github.com/user-attachments/assets/75f1bb2a-0b68-4ece-8285-2928e9b30054" />
-
+<img width="1280" height="1129" alt="image" src="https://github.com/user-attachments/assets/744262f6-2020-41ec-89c1-584af56f9630" />
 
 ## motive
 I  wanted a Ketron EVM to carry to church and back every Sunday, but I could not afford one as I had spent all my savings on a Ketron Event 76 keyboard when it first came out. 
