@@ -13,9 +13,13 @@ In the end I decided to use my knowledge of web audio and developer skills to se
 For a demo, see https://deleolajide.github.io/vibe-arranger/
 
 ## requirements
+You need a Chrome or Edge web browser to use this. I have no idea if it will work with FF or Safari.
+
 You would need a midi controller, a folder/directory or drive on your PC that contains the Ketron USER_MODELING and USER_STYLE folders. make sure the Ketron KST files are 100% audio style files like the ones that Ben Gotink produces at SC-MULTIMEDIA.
 
 You also need a good quality SF2 sound font file with a piano sound. (program change 0). The web application will ignore all midi data in the KST file and only extract the audio style folder names. Make sure they exist in the USER_MODELING folder.
+
+If you don't have access to a Ketron Event keyboard, I have provided a custom style from my collection called "Afro Beats" a public free SF2 sound font file to use and test with instead. Go to https://github.com/deleolajide/vibe-arranger/releases/tag/v1.0.0 for more details.
 
 ## operation
 The application will ask you for various permissions. If you are unsure, then terminate immediately.
