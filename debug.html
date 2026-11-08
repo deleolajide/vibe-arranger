@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>VibeArranger</title>
 	<link rel="icon" type="image/x-icon" href="./favicon.png"> 
 	<link rel="manifest"   href="./web-manifest.json" />		
@@ -41,34 +40,29 @@
         .control-row label { min-width: 90px; }
         button[aria-pressed="true"] { background: #ff7043; }
 	</style>
-    <link rel="stylesheet" href="./style.css">
 </head>
 <body>
 
-    <header class="console-header">
-        <div><span class="brand-mark">VA</span><h1>VIBE <span>ARRANGER</span></h1></div>
-        <p>WEB AUDIO ARRANGER <span> / </span> PERFORMANCE CONSOLE</p>
-    </header>
-    <main class="console">
-    <div class="console-title"><span>LIVE CONTROL</span><span>Audio styles &middot; SoundFont &middot; MIDI</span></div>
+    <h1>🎹 Vibe Arranger</h1>
+    <p>Proof of Concept for a Web based Audio Styles Arranger</p>
 
     <!-- STORAGE PICKER -->
-    <div class="box storage">
-        <h3><span>01</span> Style library</h3>
+    <div class="box">
+        <h3>1. Connect Storage Folder</h3>
         <button id="btn-link-dir">Select Ketron Root Folder</button>
-        <p id="txt-dir">Connect a directory to view style items.</p>
+        <p id="txt-dir" style="color: #aaa;">Status: Connect a directory to view style items.</p>
         
         <div id="file-display" class="file-list" style="display:none;">
             <strong>Select a `.KST` File to Analyze:</strong>
             <div id="kst-items"></div>
         </div>
-        <p class="selected-style">Selected style: <strong id="selected-style">None</strong></p>
-        <button id="btn-parse" disabled>Load selected style</button>
     </div>
 
     <!-- TARGET EXTRACTOR CONTROL -->
-    <details class="box extraction">
-        <summary><span>STYLE DATA</span> KSHP assignments</summary>
+    <div class="box">
+        <h3>2. KSHP Header Memory Assignment</h3>
+        <button id="btn-parse" disabled>Inspect & Extract KSHP Block Boundaries</button>
+        
         <div class="data-card">
             <div>⏱️ Native Track Tempo: <span id="out-tempo" class="highlight">-- BPM</span></div><br>
             <div>🥁 LiveDrum Subfolder Path: <span id="out-drum" class="highlight">--</span></div><br><br>
@@ -81,10 +75,10 @@
             <div>🎹 RealChord ARRC Subfolder Path: <span id="out-chord3" class="highlight">--</span></div>
             <div>🎹 RealChord ARRD Subfolder Path: <span id="out-chord4" class="highlight">--</span></div><br>
         </div>
-    </details>
+    </div>
 	
-	<div class="box soundfont">
-		<h3><span>02</span> SoundFont synth</h3>
+	<div class="box">
+		<h3>3. Sound Font Synth</h3>
 		<p>Choose a SoundFont from the connected root folder or upload one directly.</p>
 		<button id="btn-scan-sf2" disabled>Scan Root for SoundFonts</button>
 		<label for="sf2-picker">SoundFont:</label>
@@ -102,15 +96,15 @@
 	</div>	
 
     <!-- MIDI HARDWARE ENGINE HUB -->
-    <div class="box midi">
-        <h3><span>03</span> MIDI input</h3>
+    <div class="box">
+        <h3>4. Hardware Connection</h3>
         <button id="btn-midi-init">Initialize Browser Web MIDI Drivers</button>
         <span id="midi-status" class="badge" style="background:#555;">Disconnected</span>
     </div>
 
-    <div class="box transport">
-        <h3><span>PLAYBACK</span> Arranger control</h3>
-        <label for="ctrl-key">Arranger key</label>
+    <div class="box">
+        <h3>5. Pitch-Compensated Loop Sync Engine</h3>
+        <label>Arranger Key: </label>
         <select id="ctrl-key">
             <option value="C">C</option><option value="C#">C#</option><option value="D">D</option>
             <option value="D#">D#</option><option value="E">E</option><option value="F">F</option>
@@ -119,29 +113,29 @@
         </select>
         
         <br><br>
-        <label id="lbl-tempo" for="ctrl-tempo">Tempo Shift Step: 0</label><br>
+        <label id="lbl-tempo">Tempo Shift Step: 0</label><br>
         <input type="range" id="ctrl-tempo" min="-6" max="6" value="0" step="1">
 
         <br><br>
-        <button id="btn-play">START ARRANGEMENT</button>
-        <button id="btn-stop">STOP</button>
+        <button id="btn-play" style="background: #555; color: #fff;">START ARRANGEMENT</button>
+        <button id="btn-stop" style="background: #555; color: #fff;">STOP</button>
     </div>
 	
     <!-- LIVE CHORD SCANNER MONITOR -->
-    <div class="box performance">
-        <h3><span>PERFORMANCE</span> Arranger state</h3>
-        <p>Play melody notes or a 3+ note chord anywhere on your MIDI controller or the keyboard below.</p>
+    <div class="box">
+        <h3>6. Full-Keyboard Arranger State</h3>
+        <p>Play individual melody notes anywhere (lights up <span class="badge bg-melody">Green</span>). Strike a 3+ note chord voicing anywhere to drive accompaniment changes (lights up <span class="badge bg-chord">Red</span>).</p>
         
-        <div class="data-card display-panel">
-            <div><span class="display-label">ACCOMPANIMENT CHORD</span><span id="out-chord" class="highlight">NO CHORD (IDLE)</span></div>
-            <div><span class="display-label">LOOP ASSET</span><span id="out-asset" class="highlight">--</span></div>
+        <div class="data-card">
+            <div>🎼 Detected Accompaniment Chord: <span id="out-chord" class="highlight">NO CHORD (IDLE)</span></div>
+            <div style="margin-top: 8px;">💿 Target Loop Asset Mapping: <span id="out-asset" class="highlight">--</span></div>
         </div>
 
         <!-- VISUAL HARDWARE MONITOR LAYER -->
         <div class="kbd-matrix" id="virtual-keyboard"></div>
 		
-		<div class="data-card performance-controls">
-			<h3>Arranger variations</h3>
+		<div class="data-card">
+			<h3>🕹️ Arranger Style Variations</h3>
 			<div class="variation-rack">
 				<button class="btn-var active" onclick="setVariation(0)">ARR A</button>
 				<button class="btn-var" onclick="setVariation(1)">ARR B</button>
@@ -171,8 +165,8 @@
 		</div>			
     </div>
 	
-    <div class="box mixer">
-        <h3><span>LEVELS</span> Mixer</h3>
+    <div class="box">
+        <h3>7. Mixer</h3>
         <p>Track levels apply to live playback, including loop transitions and the SoundFont synth.</p>
         <div class="control-row"><label for="volume-drums">Drums</label><input id="volume-drums" type="range" min="0" max="100" value="100"><output id="level-drums">100%</output><button id="mute-drums" aria-pressed="false">Mute drums</button></div>
         <div class="control-row"><label for="volume-bass">Bass</label><input id="volume-bass" type="range" min="0" max="100" value="100"><output id="level-bass">100%</output><button id="mute-bass" aria-pressed="false">Mute bass</button></div>
@@ -181,8 +175,8 @@
         <div class="control-row"><label for="volume-master">Master</label><input id="volume-master" type="range" min="0" max="100" value="100"><output id="level-master">100%</output><button id="mute-master" aria-pressed="false">Mute master</button></div>
     </div>
 
-    <details class="box effects">
-        <summary><span>SOUND</span> Synth effects &amp; EQ</summary>
+    <div class="box">
+        <h3>8. Synth Effects</h3>
         <p>One insertion effect at a time applies to the SoundFont synth, not the audio loops. Selecting Symphonic switches to XG mode; GS EQ is unavailable in that mode.</p>
         <div class="control-row">
             <label for="effect-type">Insertion</label>
@@ -199,13 +193,10 @@
             <div class="control-row"><label for="eq-low-frequency">Low frequency</label><select id="eq-low-frequency"><option value="0">225 Hz</option><option value="1">425 Hz</option></select><label for="eq-low-gain">Low gain</label><input id="eq-low-gain" type="range" min="-12" max="12" value="0"><output id="eq-low-output">0 dB</output></div>
             <div class="control-row"><label for="eq-high-frequency">High frequency</label><select id="eq-high-frequency"><option value="0">3 kHz</option><option value="1">6 kHz</option></select><label for="eq-high-gain">High gain</label><input id="eq-high-gain" type="range" min="-12" max="12" value="0"><output id="eq-high-output">0 dB</output></div>
         </fieldset>
-    </details>
+    </div>
 
-    <details class="box diagnostics">
-        <summary><span>SYSTEM</span> Output log</summary>
-        <div id="log-window" class="log">Engine waiting to initialize...</div>
-    </details>
-    </main>
+    <h3>System Output Log</h3>
+    <div id="log-window" class="log">Engine waiting to initialize...</div>
 
 	<script type="module">
 		import { WorkletSynthesizer } from "./spessasynth/spessasynth_lib.js";
@@ -501,11 +492,10 @@
                     count += await scanStyleFolderDeep(nextHandle, subPath);
                 } else if (entry.kind === 'file' && entry.name.toLowerCase().endsWith('.kst')) {
                     count++;
-                    const div = document.createElement('button');
-                    div.type = 'button';
-                    div.className = 'style-item';
+                    const div = document.createElement('div');
+                    div.style.padding = "6px"; div.style.cursor = "pointer"; div.style.borderBottom = "1px solid #444";
                     const genre = currentPath || "Root";
-                    div.textContent = `${genre} / ${entry.name}`;
+                    div.innerHTML = `<span class="genre-tag">${genre}</span> 📄 ${entry.name}`;
                     div.onclick = () => {
                         selectedStyleInfo = { handle: entry, path: genre, name: entry.name };
                         highlightSelection(div);
@@ -519,10 +509,9 @@
         function injectStructuredMockKst() {
             document.getElementById('file-display').style.display = "block";
             const container = document.getElementById('kst-items');
-            const div = document.createElement('button');
-            div.type = 'button';
-            div.className = 'style-item';
-            div.textContent = 'Ballad / CustomGuitars.kst (Simulation Mode)';
+            const div = document.createElement('div');
+            div.style.padding = "6px"; div.style.cursor = "pointer";
+            div.innerHTML = `<span class="genre-tag">Ballad</span> 📄 CustomGuitars.kst (Simulation Mode)`;
             div.onclick = () => {
                 selectedStyleInfo = { synthetic: true, name: "CustomGuitars.kst", path: "Ballad" };
                 highlightSelection(div);
@@ -531,13 +520,8 @@
         }
 
         function highlightSelection(el) {
-            Array.from(document.getElementById('kst-items').children).forEach(c => {
-                c.style.background = "transparent";
-                c.setAttribute('aria-pressed', 'false');
-            });
-            el.style.background = "#167d70";
-            el.setAttribute('aria-pressed', 'true');
-            document.getElementById('selected-style').textContent = selectedStyleInfo.name;
+            Array.from(document.getElementById('kst-items').children).forEach(c => c.style.background = "transparent");
+            el.style.background = "#2a4a32";
             document.getElementById('btn-parse').disabled = false;
             logger(`Target file targeted: ${selectedStyleInfo.name}`);
         }
@@ -826,7 +810,7 @@
 
             logger("Engine populated. Ready to run arranger phase verification matrix.");
 			playButton.disabled = false;
-			playButton.style.background = "#f4b51b";
+			playButton.style.background = "#ff3d00"; 		
         }		
     
         const tempoInput = document.getElementById('ctrl-tempo');
@@ -855,7 +839,7 @@
 				])) return;
 				isPlaying = true;
 				e.target.innerHTML = "STOP ARRANGEMENT";
-				e.target.style.background = "#13877a";
+				e.target.style.background = "#00e676"; 				
 				runArrangerPlaybackChannels();
 			}
         });
@@ -1041,7 +1025,7 @@
 			if (endingScheduled) return;
 
 			const playButton = document.querySelector("#btn-play");	
-			playButton.style.background = "#a36b1a";
+			playButton.style.background = "brown"; 	
 			playButton.innerHTML = "STOPPING....";
 			
             const targetKey = keyInput.value;
@@ -1107,7 +1091,7 @@
 			isPlaying = false;	
 			const playButton = document.querySelector("#btn-play");			
 			playButton.innerHTML = "START ARRANGEMENT";
-			playButton.style.background = "#f4b51b";
+			playButton.style.background = "#ff3d00"; 			
             logger("Engine tracking stopped.");
         }
 
@@ -1127,33 +1111,14 @@
                 const name = noteNames[midiNote % 12];
                 const isBlack = name.includes("#");
                 
-                const div = document.createElement('button');
-                div.type = 'button';
+                const div = document.createElement('div');
                 div.id = `note-${midiNote}`;
                 div.className = isBlack ? "key black" : "key";
                 div.innerText = `${name}${Math.floor(midiNote/12)-1}`;
-                div.setAttribute('aria-label', `Play ${name}${Math.floor(midiNote/12)-1}`);
                 
-                div.onpointerdown = (event) => {
-                    if (event.button !== 0) return;
-                    div.setPointerCapture(event.pointerId);
-                    handleInputRouting(144, midiNote, 100);
-                };
-                div.onpointerup = () => handleInputRouting(128, midiNote, 0);
-                div.onpointercancel = () => handleInputRouting(128, midiNote, 0);
-                div.onkeydown = (event) => {
-                    if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) {
-                        event.preventDefault();
-                        handleInputRouting(144, midiNote, 100);
-                    }
-                };
-                div.onkeyup = (event) => {
-                    if (event.key === ' ' || event.key === 'Enter') {
-                        event.preventDefault();
-                        handleInputRouting(128, midiNote, 0);
-                    }
-                };
-                div.onblur = () => handleInputRouting(128, midiNote, 0);
+                // Mouse interactions emulator for testing without physical controllers
+                div.onmousedown = () => handleInputRouting(144, midiNote, 100);
+                div.onmouseup = () => handleInputRouting(128, midiNote, 0);
                 
                 kbd.appendChild(div);
             }
