@@ -14,16 +14,16 @@ In the end I decided to use my knowledge of web audio and developer skills to se
 For a demo, see https://deleolajide.github.io/vibe-arranger/
 
 ## requirements
-You would need a midi controller, a folder/directory or drive on your PC that contains the Ketron USER_MODELING and USER_STYLES folders. make sure the Ketron KST files are 100% audio style files like the ones that Ben Gotink produces at SC-MULTIMEDIA.
+You would need a midi controller, a folder/directory or drive on your PC that contains the Ketron USER_MODELING and USER_STYLE folders. make sure the Ketron KST files are 100% audio style files like the ones that Ben Gotink produces at SC-MULTIMEDIA.
 
 You also need a good quality SF2 sound font file with a piano sound. (program change 0). The web application will ignore all midi data in the KST file and only extract the audio style folder names. Make sure they exist in the USER_MODELING folder.
 
 ## operation
 The application will ask you for various permissions. If you are unsure, then terminate immediately.
 
-Otherwise, start from section 1 and work your way down to section 8. Pick and select the folder or mounted drive on your PC that has the USER_MODELING and USER_STYLES folders as your root folder. After connecting the root folder, use section 2 to select a KST style file that will be scaned for audio style folders. Use **Scan Root for SoundFonts** in section 3 to find `.sf2` files recursively and select one by its relative path. You can also select a SoundFont elsewhere from your PC directly. The most recently selected file replaces the current SoundFont.
+Connect the folder or mounted drive containing `USER_MODELING` and `USER_STYLE` in **Style library**. Select a KST file from the list and choose **Load selected style** to extract its audio style folders and load the loops. The extracted paths and native tempo are available under **KSHP assignments**, and loading errors appear in the **Output log**. Use **Scan Root for SoundFonts** in **SoundFont synth** to find `.sf2` files recursively and select one by its relative path. You can also select a SoundFont elsewhere from your PC directly. The most recently selected file replaces the current SoundFont. Initialize **MIDI input** to use a connected controller, or use the on-screen keyboard.
 
-The mixer in section 7 controls the drum, bass, chord, and synth levels independently, plus the master output. Muting preserves the slider setting. Section 8 applies one insertion effect at a time to the SoundFont synth (not the audio style loops), with GS low and high EQ controls. Symphonic uses the synth's XG processor, so GS EQ is unavailable while it is selected; switching between GS and XG resets sounding synth notes. Effect and mixer settings are retained when changing SoundFonts during the session.
+The **Mixer** controls the drum, bass, chord, and synth levels independently, plus the master output. Muting preserves the slider setting. **Synth effects & EQ** applies one insertion effect at a time to the SoundFont synth (not the audio style loops), with GS low and high EQ controls. Symphonic uses the synth's XG processor, so GS EQ is unavailable while it is selected; switching between GS and XG resets sounding synth notes. Effect and mixer settings are retained when changing SoundFonts during the session.
 
 While the arranger is playing, use the FILA–FILD and BRKA–BRKD buttons to play the remainder of a drum fill or break in the current bar. The current drum loop resumes at the next bar while bass and chords continue. Variation changes take effect at the next bar; enable AutoFill to play the fill corresponding to the selected variation before the change. The arrangement start/stop button plays END3 at the next bar, while STOP stops immediately. Bar timing assumes four beats per bar. Missing loops are reported in the system log.
 
