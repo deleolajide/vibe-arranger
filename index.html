@@ -841,27 +841,23 @@
             if (isPlaying && !endingScheduled) restartArrangerEngine();
         });
 
-        document.getElementById('btn-play').addEventListener('click', async (e) => {
+        document.getElementById('btn-play').addEventListener('click',(e) => {
+			doStartStop();
+        });
+
+        document.getElementById('btn-stop').addEventListener('click', stopArranger);
+
+		function doStartStop() {
+		
             if (!audioCtx) return logger("Please click 'Link Folder' first.");
 			
 			if (isPlaying) {
 				stopArrangerPlaybackChannels();				
 			} else {
-				if (audioCtx.state === "suspended") await audioCtx.resume();
-				if (!hasBuffers([
-					["drums", intros[2]],
-					["bass", "0_BIN_MAJ_" + getMelodicKey()],
-					["chords", "0_IN_MAJ_" + getMelodicKey()]
-				])) return;
-				isPlaying = true;
-				e.target.innerHTML = "STOP ARRANGEMENT";
-				e.target.style.background = "#13877a";
-				runArrangerPlaybackChannels();
-			}
-        });
-
-        document.getElementById('btn-stop').addEventListener('click', stopArranger);
-
+				startArrangerPlaybackChannels();
+			}		
+		}
+		
 		function getMelodicKey() {
 			const index = (noteNames.indexOf(keyInput.value) - parseInt(tempoInput.value, 10) + 12) % 12;
 			return noteNames[index];
@@ -1036,6 +1032,21 @@
             activeSources.push(triggerLoopNode("bass", loopAudioBuffers.bass["0_BIN_MAJ_" + calculatedMelodicKey], rate, startTime, fadeTime));
             activeSources.push(triggerLoopNode("chords", loopAudioBuffers.chords["0_IN_MAJ_" + calculatedMelodicKey], rate, startTime, fadeTime));
         }
+
+		async function startArrangerPlaybackChannels() {
+			if (audioCtx.state === "suspended") await audioCtx.resume();
+			if (!hasBuffers([
+				["drums", intros[2]],
+				["bass", "0_BIN_MAJ_" + getMelodicKey()],
+				["chords", "0_IN_MAJ_" + getMelodicKey()]
+			])) return;
+			isPlaying = true;
+			
+			const playButton = document.querySelector("#btn-play");				
+			playButton.innerHTML = "STOP ARRANGEMENT";
+			playButton.style.background = "#13877a";
+			runArrangerPlaybackChannels();	
+		}				
 		
         function stopArrangerPlaybackChannels() {
 			if (endingScheduled) return;
@@ -1196,8 +1207,12 @@
 
         function handleInputRouting(status, note, velocity) {
             const msgType = status & 0xF0;
+			const channel = status & 0x0F;
+			console.debug("handleInputRouting", channel, msgType, note, velocity);
+			
             const isNoteOn = (msgType === 144 && velocity > 0);
             const isNoteOff = (msgType === 128 || (msgType === 144 && velocity === 0));
+			const isStart = msgType == 240;
 
             if (isNoteOn) {
                 if (synth && audioCtx.state === 'suspended') {
@@ -1213,12 +1228,19 @@
                 // Queue microsecond time window evaluation to look for full harmonic shapes
                 triggerChordEvaluationBuffer();
             } 
-            else if (isNoteOff) {
+            else 
+			
+			if (isNoteOff) {
                 activeNotes.delete(note);
                 updateKeyVisual(note, 'off');
                 triggerChordEvaluationBuffer();
 				if (synth) synth.noteOff(0, note);
             }
+			else
+			
+			if (isStart) {
+				doStartStop();
+			}
         }
 
         function triggerChordEvaluationBuffer() {
