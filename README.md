@@ -6,7 +6,7 @@
 ## motive
 I  wanted a Ketron EVM to carry to church and back every Sunday, but I could not afford one as I had spent all my savings on a Ketron Event 76 keyboard when it first came out. 
 
-I tried Giglad, but transferring audio styles between Giglad and Ketron is painful and time consuming. I looked at Audio Phrase mapper, but I was unable to confirm if it would really solve that problem.
+I tried Giglad, a software arranger but transferring audio styles between Giglad and Ketron is painful and time consuming. I looked at Audio Phrase mapper, but I was unable to confirm if it would really solve that problem.
 
 In the end I decided to use my knowledge of web audio and developer skills to see if I could create my own arranger that would use my collection of Ketron audio styles and SF2 sound fonts. Here is my proof of concept web application after a few days of vibe coding with Google AI. I have called it (tongue-in-cheek) *Vibe Arranger*. 
 
@@ -15,7 +15,7 @@ For a demo, see https://deleolajide.github.io/vibe-arranger/
 ## requirements
 You need a Chrome or Edge web browser to use this. I have no idea if it will work with FF or Safari.
 
-You would need a midi controller, a folder/directory or drive on your PC that contains the Ketron USER_MODELING and USER_STYLE folders. make sure the Ketron KST files are 100% audio style files like the ones that Ben Gotink produces at SC-MULTIMEDIA.
+You would need a midi controller, a folder/directory or drive on your PC that contains the Ketron USER_MODELING and USER_STYLE folders. Make sure the Ketron KST files are 100% audio style files like the ones that Ben Gotink produces at SC-MULTIMEDIA.
 
 You also need a good quality SF2 sound font file with a piano sound. (program change 0). The web application will ignore all midi data in the KST file and only extract the audio style folder names. Make sure they exist in the USER_MODELING folder.
 
@@ -31,7 +31,7 @@ The **Mixer** controls the drum, bass, chord, and synth levels independently, pl
 While the arranger is playing, use the FILA–FILD and BRKA–BRKD buttons to play the remainder of a drum fill or break in the current bar. The current drum loop resumes at the next bar while bass and chords continue. Variation changes take effect at the next bar; enable AutoFill to play the fill corresponding to the selected variation before the change. The arrangement start/stop button plays END3 at the next bar, while STOP stops immediately. Bar timing assumes four beats per bar. Missing loops are reported in the system log.
 
 ## advanced stuff
-This code has two novel features that I added for my playing needs. The loops are synched to the tempo (beats per minute) and when triggered by chord detection, will start at the same point being played in the current loop. This ensures that you will hear the complete loop across chord changes. The longer your loops are (8 bars for example), the more variety you will get from your playing your chord progression.
+This code has two novel features that I added for my playing needs. The loops are synched to the tempo (beats per minute) and when triggered by chord detection, will start at the same point being played in the current loop. This ensures that you will hear the complete loop across chord changes. The longer your loops are (8 bars for example), the more variety you will get from playing your chord progression. I play right hand chords and chord detection is full keyboard also known as pianist mode.
 
 The second feature is that the code I wrote does not do any time stretching that degrades the audio quality. Instead, it gives 12 tempo steps from half the the original playback speed to double the playback speed. The novelty is calculating which loop to play that compensates the increased/decreased pitch with a drop/rise in the chromatic music scale. I had forgotten all the maths I learnt in school and AI came to the rescue.
 
