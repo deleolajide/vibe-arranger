@@ -30,6 +30,12 @@ The **Mixer** controls the drum, bass, chord, and synth levels independently, pl
 
 While the arranger is playing, use the FILA–FILD and BRKA–BRKD buttons to play the remainder of a drum fill or break in the current bar. The current drum loop resumes at the next bar while bass and chords continue. Variation changes take effect at the next bar; enable AutoFill to play the fill corresponding to the selected variation before the change. The arrangement start/stop button plays END3 at the next bar, while STOP stops immediately. Bar timing assumes four beats per bar. Missing loops are reported in the system log.
 
+## credits
+- [Ben Gotink at SC-MULTIMEDIA](https://sc-multimedia.nl/) for showing how to make 100% useable custom styles for the Ketron Event
+- [Afro Producers](https://afrobeatproducers.com/pages/free-download) for the drum loops in the free Ketron Style provided for testing.
+- [Band in a Box by PG Music](https://www.pgmusic.com/) that I used to create the real bass and chord loops in that same style
+
+
 ## disclaimer and liability
 It is open source, free and available for anyone to clone, extend and do whatever they like with it. It is fully functional and proves the concept and answers my question about creating a cheaper Ketron EVM alternative. 
 
