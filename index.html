@@ -229,6 +229,7 @@
         function ensureMixer() {
             if (mixer) return mixer;
             mixer = {};
+			
             for (const name of Object.keys(mixerState)) {
                 mixer[name] = audioCtx.createGain();
                 mixer[name].gain.value = mixerState[name].muted ? 0 : mixerState[name].volume;
@@ -450,7 +451,7 @@
 
         document.getElementById('btn-link-dir').addEventListener('click', async () => {
             try {
-                rootDirHandle = await window.showDirectoryPicker();
+                rootDirHandle = await window.showDirectoryPicker({ id: 'vibe-arranger' });
                 scanRequest++;
                 soundFontHandles = [];
                 document.getElementById('btn-scan-sf2').disabled = false;
@@ -1208,11 +1209,13 @@
         function handleInputRouting(status, note, velocity) {
             const msgType = status & 0xF0;
 			const channel = status & 0x0F;
-			console.debug("handleInputRouting", channel, msgType, note, velocity);
+			//console.debug("handleInputRouting", channel, msgType, note, velocity);
 			
             const isNoteOn = (msgType === 144 && velocity > 0);
             const isNoteOff = (msgType === 128 || (msgType === 144 && velocity === 0));
 			const isStart = msgType == 240;
+			const programChange = msgType == 192;
+			const controlChange = msgType == 176;			
 
             if (isNoteOn) {
                 if (synth && audioCtx.state === 'suspended') {
@@ -1240,6 +1243,28 @@
 			
 			if (isStart) {
 				doStartStop();
+			}
+			else 
+			
+			if (programChange) {	// drum pads - trigger variations
+				if (note >= 0 && note < 8) setVariation(note);
+				if (note > 7 && note < 12) playDrumFill(fills[note % 4]);
+				if (note > 11 && note < 16) playDrumFill(breaks[note % 4]);			
+			}
+			else
+			
+			if (controlChange) {	// encoders - change volumes
+				let name;
+				if (note == 51) {name = "drums"; 	document.querySelector("#volume-" + name).value = (velocity / 127) * 100};
+				if (note == 52) {name = "bass"; 	document.querySelector("#volume-" + name).value = (velocity / 127) * 100};
+				if (note == 53) {name = "chords"; 	document.querySelector("#volume-" + name).value = (velocity / 127) * 100};	
+				if (note == 54) {name = "synth"; 	document.querySelector("#volume-" + name).value = (velocity / 127) * 100};
+				if (note == 55) {name = "master"; 	document.querySelector("#volume-" + name).value = (velocity / 127) * 100};	
+
+				if (mixer && name) {
+					mixer[name].gain.setValueAtTime((velocity / 127), audioCtx.currentTime);	
+					document.getElementById(`level-${name}`).textContent = `${Math.round((velocity / 127) * 100)}%`;		
+				}					
 			}
         }
 
