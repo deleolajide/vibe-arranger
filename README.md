@@ -1,7 +1,6 @@
-# vibe-arranger
-*Proof of Concept for a Web based Audio Styles Arranger*
+# Vibe Arranger
 
-<img width="1280" height="1129" alt="image" src="https://github.com/user-attachments/assets/744262f6-2020-41ec-89c1-584af56f9630" />
+A browser-based audio-loop arranger with two SoundFont voices and live Web MIDI input to be used as a portable alternative to the Ketron Event Module (EVM) .
 
 ## motive
 I  wanted a Ketron EVM to carry to church and back every Sunday, but I could not afford one as I had spent all my savings on a Ketron Event 76 keyboard when it first came out. 
@@ -9,6 +8,8 @@ I  wanted a Ketron EVM to carry to church and back every Sunday, but I could not
 I tried Giglad, a software arranger but transferring audio styles between Giglad and Ketron is painful and time consuming. I looked at Audio Phrase mapper, but I was unable to confirm if it would really solve that problem.
 
 In the end I decided to use my knowledge of web audio and developer skills to see if I could create my own arranger that would use my collection of Ketron audio styles and SF2 sound fonts. Here is my proof of concept web application after a few days of vibe coding with Google AI. I have called it (tongue-in-cheek) *Vibe Arranger*. 
+
+Please note that this is not a full emulation of all EVM functions.
 
 For a demo, see https://deleolajide.github.io/vibe-arranger/
 
@@ -24,11 +25,13 @@ If you don't have access to a Ketron Event keyboard, I have provided a custom st
 ## operation
 The application will ask you for various permissions. If you are unsure, then terminate immediately.
 
-Connect the folder or mounted drive containing `USER_MODELING` and `USER_STYLE` in **Style library**. Select a KST file from the list and choose **Load selected style** to extract its audio style folders and load the loops. The extracted paths and native tempo are available under **KSHP assignments**, and loading errors appear in the **Output log**. Use **Scan Root for SoundFonts** in **SoundFont synth** to find `.sf2` files recursively and select one by its relative path. You can also select a SoundFont elsewhere from your PC directly. The most recently selected file replaces the current SoundFont. Initialize **MIDI input** to use a connected controller, or use the on-screen keyboard.
+Access directly from https://deleolajide.github.io/vibe-arranger/ or download and serve locally over `localhost` or HTTPS (for example, `python -m http.server`). Open it in a Chromium browser with Web MIDI and the File System Access API. Choose **Root folder** and grant access to the Ketron root. The app scans recursively for `.kst` styles and `.sf2` SoundFonts. Select a style and a patch in each voice column, connect a MIDI keyboard with **MIDI**, and use the bottom controls to start, stop, change variations, fills and breaks. Click the Style, Voice 1 or Voice 2 header to show its list in the large display under columns 2-4. Lists are two levels deep: pick a style category (folder) or SoundFont file first, then a style or patch; use the back row to return. `ARR A-D` choose the variation, `VAR 1-4` toggles the `VAR 5-8` alternate of the current variation, and `FILL` / `BREAK` play the fill or break matching the current variation.
 
-The **Mixer** controls the drum, bass, chord, and synth levels independently, plus the master output. Muting preserves the slider setting. **Synth effects & EQ** applies one insertion effect at a time to the SoundFont synth (not the audio style loops), with GS low and high EQ controls. Symphonic uses the synth's XG processor, so GS EQ is unavailable while it is selected; switching between GS and XG resets sounding synth notes. Effect and mixer settings are retained when changing SoundFonts during the session.
+Registrations: the dropdown in the Global column selects slots 1-20 (● marks used slots). **Save reg** writes style, voices (SoundFont, patch, octave, transpose, effects, EQ), mixer, key, tempo shift, AutoFill, intro/ending and variation to `REGISTRATIONS/REG_nn.json` in the root folder (the folder picker requests write access); without a root folder it uses browser storage. **Recall** restores the slot; items missing from the scanned folder are reported. Playing state is not restored unless the arranger is running.
 
-While the arranger is playing, use the FILA–FILD and BRKA–BRKD buttons to play the remainder of a drum fill or break in the current bar. The current drum loop resumes at the next bar while bass and chords continue. Variation changes take effect at the next bar; enable AutoFill to play the fill corresponding to the selected variation before the change. The arrangement start/stop button plays END3 at the next bar, while STOP stops immediately. Bar timing assumes four beats per bar. Missing loops are reported in the system log.
+Both voices play incoming notes; the selected voice's octave, transpose, insertion effect and EQ are independent. Mixer levels and mute controls affect drums, bass, chords, each voice and master separately. The arranger detects chords from three or more held notes across the keyboard.
+
+The KST file reader is a fixed-offset parser, not a complete Ketron format implementation. It expects `USER_MODELING/LiveDrum`, `RealBass` and `RealChord` folders and matching WAV loop names referenced by the style. Unsupported styles or missing assets are reported; no Ketron assets are included. Tempo shift changes loop playback rate and uses the existing pitch-compensation asset mapping, not independent time stretching. Intro and ending controls choose the corresponding drum loops; the existing engine loops the intro until a variation is selected. 
 
 ## advanced stuff
 This code has two novel features that I added for my playing needs. The loops are synched to the tempo (beats per minute) and when triggered by chord detection, will start at the same point being played in the current loop. This ensures that you will hear the complete loop across chord changes. The longer your loops are (8 bars for example), the more variety you will get from playing your chord progression. I play right hand chords and chord detection is full keyboard also known as pianist mode.
@@ -46,4 +49,4 @@ It is open source, free and available for anyone to clone, extend and do whateve
 
 I have decide to share what I have done so far for anyone else who wants to use it as a template for their own vibe coding session with AI to create an arranger for their own specific needs like mine. The software is experimental, use it at your own risk.
 
-Source code can be found at here https://github.com/deleolajide/vibe-arranger 
+Source code can be found at here https://github.com/deleolajide/vibe-arranger . The code for the proof of concept version can be found in poc.html
