@@ -2,6 +2,8 @@
 
 A browser-based audio-loop arranger with two SoundFont voices and live Web MIDI input to be used as a portable alternative to the Ketron Event Module (EVM) .
 
+<img width="1646" height="936" alt="image" src="https://github.com/user-attachments/assets/01d3ba68-0789-4334-91fb-fd2936abf247" />
+
 ## motive
 I  wanted a Ketron EVM to carry to church and back every Sunday, but I could not afford one as I had spent all my savings on a Ketron Event 76 keyboard when it first came out. 
 
@@ -9,9 +11,7 @@ I tried Giglad, a software arranger but transferring audio styles between Giglad
 
 In the end I decided to use my knowledge of web audio and developer skills to see if I could create my own arranger that would use my collection of Ketron audio styles and SF2 sound fonts. Here is my proof of concept web application after a few days of vibe coding with Google AI. I have called it (tongue-in-cheek) *Vibe Arranger*. 
 
-Please note that this is not a full emulation of all EVM functions.
-
-For a demo, see https://deleolajide.github.io/vibe-arranger/
+Please note that this is not a full emulation of all EVM functions. 
 
 ## requirements
 You need a Chrome or Edge web browser to use this. I have no idea if it will work with FF or Safari.
@@ -45,8 +45,8 @@ The second feature is that the code I wrote does not do any time stretching that
 
 
 ## disclaimer and liability
-It is open source, free and available for anyone to clone, extend and do whatever they like with it. It is fully functional and proves the concept and answers my question about creating a cheaper Ketron EVM alternative. 
+It is open source, free and available for anyone to clone, extend and do whatever they like with it. It is fully functional, proves the concept and answers my question about creating a cheaper Ketron EVM alternative. 
 
-I have decide to share what I have done so far for anyone else who wants to use it as a template for their own vibe coding session with AI to create an arranger for their own specific needs like mine. The software is experimental, use it at your own risk.
+I have decide to share what I have done so far for anyone else who wants to use it as a template for their own vibe coding session with AI to create an arranger for their own specific needs like mine. The software is experimental, use it at your own risk. The code for the proof of concept version can be found in poc.html if you want to create a different operational UI.
 
-Source code can be found at here https://github.com/deleolajide/vibe-arranger . The code for the proof of concept version can be found in poc.html
+Source code can be found at here https://github.com/deleolajide/vibe-arranger.
